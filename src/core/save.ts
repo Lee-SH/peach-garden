@@ -1,4 +1,4 @@
-import type { BattleState } from './types';
+import type { Fighter } from './types';
 
 export interface RosterEntry {
   level: number;
@@ -13,6 +13,8 @@ export interface CampaignSave {
   roster: Record<string, RosterEntry>;
   /** story branch flags, e.g. pangtong_survived */
   flags: Record<string, boolean>;
+  /** general ids by slot: [선봉, 중군, 후군]. Optional for saves made before formations existed. */
+  formation?: string[];
 }
 
 const KEY = 'peach-garden.save.v1';
@@ -27,13 +29,15 @@ export function newCampaign(): CampaignSave {
       zhangfei: { level: 1, xp: 0, alive: true },
     },
     flags: {},
+    formation: ['guanyu', 'liubei', 'zhangfei'],
   };
 }
 
 /** Copy battle results (levels, deaths) into the campaign. Pure — returns a new save. */
-export function applyBattleResult(save: CampaignSave, battle: BattleState, nextScenarioId: string | null): CampaignSave {
+/** `party` fighters must already have their battle XP applied (see gainXp). */
+export function applyBattleResult(save: CampaignSave, party: Fighter[], nextScenarioId: string | null): CampaignSave {
   const roster = { ...save.roster };
-  for (const u of battle.units.filter((u) => u.side === 'player')) {
+  for (const u of party.filter((u) => u.side === 'player')) {
     roster[u.id] = { level: u.level, xp: u.xp, alive: !u.dead };
   }
   return { ...save, roster, scenarioId: nextScenarioId ?? save.scenarioId };

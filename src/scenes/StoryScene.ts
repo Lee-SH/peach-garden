@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import type { Line } from '../data/scenarios';
-import { GENERALS } from '../data/units';
+import { ENEMIES, GENERALS } from '../data/units';
 import { button, COLOR, text, W } from '../ui/theme';
 
 export interface StoryData {
@@ -52,8 +52,10 @@ export class StoryScene extends Phaser.Scene {
     this.speakerBadge.setVisible(!isNarration);
     this.speakerName.setText(line.speaker);
     if (!isNarration) {
-      const g = Object.values(GENERALS).find((x) => x.name === line.speaker);
-      (this.speakerBadge.list[1] as Phaser.GameObjects.Text).setText(g?.token ?? line.speaker[0]);
+      const ally = Object.values(GENERALS).find((x) => x.name === line.speaker);
+      const foe = Object.values(ENEMIES).find((x) => x.name === line.speaker);
+      (this.speakerBadge.list[0] as Phaser.GameObjects.Arc).setFillStyle(ally ? COLOR.player : COLOR.boss);
+      (this.speakerBadge.list[1] as Phaser.GameObjects.Text).setText((ally ?? foe)?.token ?? line.speaker[0]);
     }
     this.body.setPosition(24, isNarration ? 424 : 464).setColor(isNarration ? COLOR.dim : COLOR.text);
     this.body.setText(line.text);

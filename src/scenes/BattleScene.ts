@@ -1,54 +1,86 @@
 import Phaser from 'phaser';
 import {
-  attackShape,
-  checkOutcome,
-  effectiveDamage,
-  getUnit,
-  moveUnit,
-  planEnemyTurn,
-  playerAttack,
-  resolveIntent,
-  spawnReinforcements,
-  startPlayerTurn,
-  undoMove,
-  waitUnit,
-  xpToNext,
-} from '../core/battle';
-import { DIRS, eq, livingUnits, reachableTiles, unitAt } from '../core/grid';
+  battleXp,
+  beginTurn,
+  breather,
+  canUse,
+  chooseAction,
+  endTurn,
+  gainXp,
+  getFighter,
+  nextActor,
+  outcome,
+  previewOrder,
+  SLOT_NAMES,
+  startWave,
+  useSkill,
+} from '../core/combat';
 import { applyBattleResult, loadSave, newCampaign, writeSave, type CampaignSave } from '../core/save';
-import type { BattleEvent, BattleState, Outcome, Pos, Unit } from '../core/types';
-import { buildBattle, SCENARIOS, type Scenario } from '../data/scenarios';
-import { GENERALS, ENEMIES } from '../data/units';
-import { button, COLOR, FONT, text, W, type Button } from '../ui/theme';
+import type { Battle, CombatEvent, EffectType, Fighter, Skill } from '../core/types';
+import { buildParty, buildWave, SCENARIOS, type Scenario } from '../data/scenarios';
+import { GENERALS } from '../data/units';
+import { button, COLOR, FONT, H, text, W, type Button } from '../ui/theme';
 import type { ResultData } from './ResultScene';
 
-const CELL = 44;
-const BOARD_X = (W - CELL * 8) / 2;
-const BOARD_Y = 66;
-const PANEL_Y = BOARD_Y + CELL * 8 + 8;
+const FIELD_TOP = 92;
+const GROUND_Y = 190;
+const PANEL_Y = 412;
+const PREFS_KEY = 'peach-garden.prefs';
 
-const ATTACK_NAME = { melee: '근접', push: '밀치기', pierce: '관통', ranged: '사격' } as const;
+const EFFECT_LABEL: Record<EffectType, string> = { atkUp: '공↑', defDown: '방↓', stun: '기절', burn: '화상' };
+
+/** Hero spots by slot (0 = 선봉, nearest to the enemy). */
+const HERO_SPOTS = [
+  { x: 136, y: 290 },
+  { x: 88, y: 238 },
+  { x: 60, y: 340 },
+];
+
+interface View {
+  c: Phaser.GameObjects.Container;
+  circle: Phaser.GameObjects.Arc;
+  ring: Phaser.GameObjects.Arc;
+  bars: Phaser.GameObjects.Graphics;
+  fx: Phaser.GameObjects.Text;
+  home: { x: number; y: number };
+}
+
+interface Choice {
+  skill: Skill;
+  targetId?: string;
+}
+
+interface SkillButton {
+  c: Phaser.GameObjects.Container;
+  bg: Phaser.GameObjects.Rectangle;
+  name: Phaser.GameObjects.Text;
+  sub: Phaser.GameObjects.Text;
+}
 
 export class BattleScene extends Phaser.Scene {
   private sc!: Scenario;
   private save!: CampaignSave;
-  private s!: BattleState;
+  private b!: Battle;
+  private wave = 0;
+  private views = new Map<string, View>();
+  private auto = true;
+  private fast = false;
+  private over = false;
 
-  private selected: Unit | null = null;
-  private inspected: Unit | null = null;
-  private pendingDir: Pos | null = null;
-  private lastMove: { unitId: string; from: Pos } | null = null;
-  private busy = false;
-  private levelUps: string[] = [];
+  private pending: { actor: Fighter; resolve: (c: Choice) => void } | null = null;
+  private selectedSkill: Skill | null = null;
   private fallen: string[] = [];
 
-  private boardLayer!: Phaser.GameObjects.Container;
-  private labels: Phaser.GameObjects.Text[] = [];
-  private hud!: Phaser.GameObjects.Text;
-  private info!: Phaser.GameObjects.Text;
-  private btnUndo!: Button;
-  private btnWait!: Button;
-  private btnEnd!: Button;
+  private bgFar!: Phaser.GameObjects.TileSprite;
+  private bgNear!: Phaser.GameObjects.TileSprite;
+  private bgGround!: Phaser.GameObjects.TileSprite;
+  private orderLayer!: Phaser.GameObjects.Container;
+  private waveText!: Phaser.GameObjects.Text;
+  private skillButtons: SkillButton[] = [];
+  private actorText!: Phaser.GameObjects.Text;
+  private descText!: Phaser.GameObjects.Text;
+  private autoBtn!: Button;
+  private speedBtn!: Button;
 
   constructor() {
     super('Battle');
@@ -57,183 +89,324 @@ export class BattleScene extends Phaser.Scene {
   create(data: { scenarioId: string }) {
     this.sc = SCENARIOS[data.scenarioId];
     this.save = loadSave() ?? newCampaign();
-    this.s = buildBattle(this.sc, this.save);
-    this.selected = this.inspected = null;
-    this.pendingDir = null;
-    this.lastMove = null;
-    this.busy = false;
-    this.levelUps = [];
+    this.b = { fighters: buildParty(this.sc, this.save), rng: Math.random };
+    this.wave = 0;
+    this.views = new Map();
+    this.pending = null;
+    this.selectedSkill = null;
     this.fallen = [];
+    this.skillButtons = [];
+    this.over = false;
+    const prefs = readPrefs();
+    this.auto = prefs.auto;
+    this.fast = prefs.fast;
 
-    // Enemies declare their first attacks before the player's first turn
-    planEnemyTurn(this.s);
+    this.makeTextures();
+    this.add.rectangle(0, FIELD_TOP, W, GROUND_Y - FIELD_TOP, 0x2b3a5c).setOrigin(0);
+    this.bgFar = this.add.tileSprite(0, FIELD_TOP, W, 110, 'bg-far').setOrigin(0);
+    this.bgNear = this.add.tileSprite(0, FIELD_TOP + 50, W, 90, 'bg-near').setOrigin(0);
+    this.bgGround = this.add.tileSprite(0, GROUND_Y, W, PANEL_Y - GROUND_Y, 'bg-ground').setOrigin(0);
 
-    this.hud = text(this, 12, 10, '', 14);
-    this.add.rectangle(W / 2, PANEL_Y + 64, W - 8, 128, COLOR.panel).setStrokeStyle(1, COLOR.panelLine);
-    this.info = text(this, 16, PANEL_Y + 8, '', 13).setWordWrapWidth(W - 32, true);
-    this.boardLayer = this.add.container(0, 0);
+    this.createHeader();
+    this.createPanel();
+    this.applySpeed();
 
-    const by = 600;
-    this.btnUndo = button(this, 66, by, 112, 44, '되돌리기', () => this.onUndo());
-    this.btnWait = button(this, W / 2, by, 100, 44, '대기', () => this.onWait());
-    this.btnEnd = button(this, W - 66, by, 112, 44, '턴 종료', () => this.onEndTurn());
+    startWave(this.b, buildWave(this.sc, 0));
+    for (const f of this.b.fighters) this.createView(f);
+    this.layout();
+    this.refresh(null);
+    void this.run();
+  }
 
-    this.input.on('pointerup', (p: Phaser.Input.Pointer) => {
-      const x = Math.floor((p.x - BOARD_X) / CELL);
-      const y = Math.floor((p.y - BOARD_Y) / CELL);
-      if (x >= 0 && y >= 0 && x < this.s.width && y < this.s.height) this.onTap({ x, y });
+  // ---------------------------------------------------------------------------
+  // Main loop
+  // ---------------------------------------------------------------------------
+
+  private async run() {
+    await this.runIn();
+    this.announceWave();
+    for (;;) {
+      if (!this.scene.isActive()) return;
+      const o = outcome(this.b);
+      if (o === 'defeat') return this.finish(false);
+      if (o === 'victory') {
+        this.wave += 1;
+        if (this.wave >= this.sc.waves.length) return this.finish(true);
+        await this.nextWave();
+        continue;
+      }
+
+      const actor = nextActor(this.b);
+      this.refresh(actor);
+      await this.wait(180);
+
+      const { events, skip } = beginTurn(this.b, actor);
+      if (events.length) {
+        this.showEvents(events);
+        this.refresh(actor);
+        await this.wait(450);
+      }
+      if (skip) {
+        endTurn(actor);
+        continue;
+      }
+
+      const choice = actor.side === 'player' && !this.auto ? await this.askPlayer(actor) : await this.aiChoice(actor);
+      const ev = useSkill(this.b, actor, choice.skill, choice.targetId);
+      await this.animateSkill(actor, choice, ev);
+      endTurn(actor);
+      this.refresh(null);
+    }
+  }
+
+  private async aiChoice(actor: Fighter): Promise<Choice> {
+    this.refreshPanel(actor);
+    await this.wait(actor.side === 'player' ? 300 : 380);
+    return chooseAction(this.b, actor);
+  }
+
+  private askPlayer(actor: Fighter): Promise<Choice> {
+    this.selectedSkill = actor.skills[0];
+    return new Promise((resolve) => {
+      this.pending = { actor, resolve };
+      this.refresh(actor);
     });
+  }
 
-    this.render();
+  private resolvePending(choice: Choice) {
+    const p = this.pending;
+    if (!p) return;
+    this.pending = null;
+    this.selectedSkill = null;
+    p.resolve(choice);
   }
 
   // ---------------------------------------------------------------------------
   // Input
   // ---------------------------------------------------------------------------
 
-  private onTap(cell: Pos) {
-    if (this.busy) return;
-    const sel = this.selected;
-    const occ = unitAt(this.s, cell);
+  private onSkillTap(i: number) {
+    const p = this.pending;
+    if (!p) return;
+    const skill = p.actor.skills[i];
+    if (!skill || !canUse(p.actor, skill)) return;
+    // Non-targeted skills fire on the second tap
+    if (this.selectedSkill === skill && skill.target !== 'enemy') {
+      this.resolvePending({ skill });
+      return;
+    }
+    this.selectedSkill = skill;
+    this.refresh(p.actor);
+  }
 
-    // Tapping a unit inside one of the attack shapes aims that attack (tap again to confirm).
-    // Empty tiles are for moving, so a 1-tile step never gets mistaken for an attack.
-    const dir = sel && !sel.acted && occ && occ !== sel ? this.attackDirTo(sel, cell) : null;
-    if (sel && dir) {
-      if (this.pendingDir && eq(this.pendingDir, dir)) {
-        this.doAttack(sel, dir);
-      } else {
-        this.pendingDir = dir;
-        this.inspected = sel;
-        this.render();
+  private onFighterTap(f: Fighter) {
+    const p = this.pending;
+    const s = this.selectedSkill;
+    if (!p || !s || f.dead) return;
+    if (f.side === 'enemy' && s.target === 'enemy') this.resolvePending({ skill: s, targetId: f.id });
+    else if (f.side === 'enemy' && s.target === 'allEnemies') this.resolvePending({ skill: s });
+    else if (f.side === 'player' && (s.target === 'allAllies' || s.target === 'self')) this.resolvePending({ skill: s });
+  }
+
+  private toggleAuto() {
+    this.auto = !this.auto;
+    writePrefs({ auto: this.auto, fast: this.fast });
+    setButtonLabel(this.autoBtn, this.autoLabel());
+    if (this.auto && this.pending) this.resolvePending(chooseAction(this.b, this.pending.actor));
+    else this.refresh(this.pending?.actor ?? null);
+  }
+
+  private toggleSpeed() {
+    this.fast = !this.fast;
+    writePrefs({ auto: this.auto, fast: this.fast });
+    this.applySpeed();
+  }
+
+  private applySpeed() {
+    const s = this.fast ? 2 : 1;
+    this.time.timeScale = s;
+    this.tweens.timeScale = s;
+    if (this.speedBtn) setButtonLabel(this.speedBtn, `x${s}`);
+  }
+
+  private autoLabel() {
+    return this.auto ? '자동 ON' : '자동 OFF';
+  }
+
+  // ---------------------------------------------------------------------------
+  // Waves: run to the right edge, switch scene, run in
+  // ---------------------------------------------------------------------------
+
+  private announceWave() {
+    const boss = this.b.fighters.find((f) => f.side === 'enemy' && f.isBoss && !f.dead);
+    this.waveText.setText(`${this.sc.title} · 무리 ${this.wave + 1}/${this.sc.waves.length}`);
+    this.banner(boss ? `${boss.name} 등장!` : `무리 ${this.wave + 1} / ${this.sc.waves.length}`, boss ? COLOR.red : COLOR.text);
+  }
+
+  private async nextWave() {
+    this.banner('돌파!', COLOR.gold);
+    await this.wait(450);
+    // 숨 고르기: heal a little while running to the next group
+    const healed = breather(this.b);
+    await this.runOut();
+    this.cameras.main.fadeOut(220);
+    await this.wait(240);
+    for (const [id, v] of [...this.views]) {
+      const f = getFighter(this.b, id);
+      if (f.side === 'enemy' || f.dead) {
+        v.c.destroy();
+        this.views.delete(id);
       }
-      return;
     }
-
-    if (sel && !sel.moved && !occ && reachableTiles(this.s, sel).some((p) => eq(p, cell))) {
-      this.lastMove = { unitId: sel.id, from: { ...sel.pos } };
-      moveUnit(this.s, sel, cell);
-      this.pendingDir = null;
-      this.render();
-      return;
+    startWave(this.b, buildWave(this.sc, this.wave));
+    for (const f of this.b.fighters) if (f.side === 'enemy') this.createView(f);
+    this.layout();
+    this.refresh(null);
+    this.cameras.main.fadeIn(220);
+    await this.runIn();
+    for (const [id, amount] of Object.entries(healed)) {
+      const v = this.views.get(id);
+      if (v && amount > 0) this.floatAt(v.c.x, v.c.y - 24, `+${amount}`, '#7cff8a', 14);
     }
+    this.announceWave();
+  }
 
-    this.pendingDir = null;
-    if (occ?.side === 'player') {
-      this.selected = occ;
-      this.inspected = occ;
+  private heroViews() {
+    return [...this.views.entries()].filter(([id]) => getFighter(this.b, id).side === 'player').map(([, v]) => v);
+  }
+
+  /** Heroes run in from off-screen left to their spots while the background scrolls. */
+  private async runIn() {
+    const heroes = this.heroViews();
+    for (const v of heroes) v.c.setPosition(v.home.x - 200, v.home.y);
+    this.scrollBackground(850);
+    for (const v of heroes) this.runTween(v, v.home.x, 850);
+    await this.wait(900);
+  }
+
+  private async runOut() {
+    this.scrollBackground(850);
+    for (const v of this.heroViews()) this.runTween(v, W + 60, 850);
+    await this.wait(900);
+  }
+
+  private runTween(v: View, x: number, duration: number) {
+    this.tweens.add({ targets: v.c, x, duration, ease: 'Linear' });
+    this.tweens.add({ targets: v.c, y: v.home.y - 7, duration: 105, yoyo: true, repeat: Math.max(0, Math.floor(duration / 210) - 1) });
+  }
+
+  private scrollBackground(duration: number) {
+    const o = { t: 0 };
+    const start = [this.bgFar.tilePositionX, this.bgNear.tilePositionX, this.bgGround.tilePositionX];
+    this.tweens.add({
+      targets: o,
+      t: 1,
+      duration,
+      onUpdate: () => {
+        this.bgFar.tilePositionX = start[0] + o.t * 60;
+        this.bgNear.tilePositionX = start[1] + o.t * 160;
+        this.bgGround.tilePositionX = start[2] + o.t * 300;
+      },
+    });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Skill animation & events
+  // ---------------------------------------------------------------------------
+
+  private async animateSkill(actor: Fighter, choice: Choice, events: CombatEvent[]) {
+    const v = this.views.get(actor.id);
+    if (!v) return;
+    const s = choice.skill;
+    const dir = actor.side === 'player' ? 1 : -1;
+    if (s.ultimate) await this.ultimateCutIn(actor, s);
+    else this.floatAt(v.c.x, v.c.y - 46, s.name, actor.side === 'player' ? COLOR.blue : '#ffd27a', 13);
+
+    const t = choice.targetId ? this.views.get(choice.targetId) : undefined;
+    if (t) {
+      const dx = t.c.x - v.c.x - dir * 50;
+      const dy = t.c.y - v.c.y;
+      await this.tweenAsync({ targets: v.c, x: v.c.x + dx, y: v.c.y + dy, duration: 150, ease: 'Quad.easeIn' });
+      this.showEvents(events);
+      this.refresh(null);
+      await this.tweenAsync({ targets: v.c, x: v.home.x, y: v.home.y, duration: 190, ease: 'Quad.easeOut' });
     } else {
-      this.selected = null;
-      this.inspected = occ ?? null;
+      await this.tweenAsync({ targets: v.c, x: v.home.x + dir * 24, duration: 110, yoyo: true });
+      if (s.power > 0) this.cameras.main.shake(140, 0.006);
+      this.showEvents(events);
+      this.refresh(null);
+      await this.wait(220);
     }
-    this.render();
+    await this.wait(220);
   }
 
-  /** Direction whose attack would hit `cell`, preferring enemy targets over allies. */
-  private attackDirTo(u: Unit, cell: Pos): Pos | null {
-    const target = unitAt(this.s, cell);
-    if (!target || (target.side === 'player' && u.attack !== 'pierce')) return null;
-    return DIRS.find((d) => attackShape(this.s, u, d).hits.some((p) => eq(p, cell))) ?? null;
+  private async ultimateCutIn(actor: Fighter, s: Skill) {
+    const bandColor = actor.side === 'player' ? 0x1e3f7a : 0x7a1e1e;
+    const band = this.add.rectangle(W / 2, 250, W, 70, bandColor, 0.92).setDepth(40);
+    const t = text(this, -W, 250, `${actor.name} 「${s.name}」`, 24, COLOR.gold).setOrigin(0.5).setDepth(41).setStroke('#000', 4);
+    this.cameras.main.flash(150, 255, 240, 200);
+    await this.tweenAsync({ targets: t, x: W / 2, duration: 260, ease: 'Back.easeOut' });
+    await this.wait(420);
+    band.destroy();
+    t.destroy();
   }
 
-  private doAttack(unit: Unit, dir: Pos) {
-    const events = playerAttack(this.s, unit, dir);
-    this.pendingDir = null;
-    this.lastMove = null;
-    this.playEvents(events);
-    this.selectNextReady(unit);
-    this.render();
-    this.afterAction();
-  }
-
-  private onUndo() {
-    if (this.busy || !this.lastMove) return;
-    const u = getUnit(this.s, this.lastMove.unitId);
-    if (u.acted) return;
-    undoMove(u, this.lastMove.from);
-    this.lastMove = null;
-    this.selected = this.inspected = u;
-    this.pendingDir = null;
-    this.render();
-  }
-
-  private onWait() {
-    if (this.busy || !this.selected || this.selected.acted) return;
-    waitUnit(this.selected);
-    this.lastMove = null;
-    this.pendingDir = null;
-    this.selectNextReady(this.selected);
-    this.render();
-  }
-
-  private selectNextReady(after?: Unit) {
-    const ready = livingUnits(this.s, 'player').filter((u) => !u.acted);
-    this.selected = ready.find((u) => u !== after) ?? null;
-    this.inspected = this.selected;
-  }
-
-  // ---------------------------------------------------------------------------
-  // Turn flow
-  // ---------------------------------------------------------------------------
-
-  private afterAction() {
-    const o = checkOutcome(this.s);
-    if (o !== 'ongoing') this.finish(o);
-  }
-
-  private async onEndTurn() {
-    if (this.busy) return;
-    this.busy = true;
-    this.selected = this.inspected = null;
-    this.pendingDir = null;
-    this.lastMove = null;
-    this.render();
-
-    for (const intent of [...this.s.intents]) {
-      const attacker = getUnit(this.s, intent.unitId);
-      if (attacker.dead) continue;
-      this.flashUnit(attacker);
-      await this.wait(260);
-      this.playEvents(resolveIntent(this.s, intent));
-      this.render();
-      await this.wait(380);
-      const o = checkOutcome(this.s);
-      if (o !== 'ongoing') return this.finish(o);
+  private showEvents(events: CombatEvent[]) {
+    for (const e of events) {
+      const f = getFighter(this.b, e.id);
+      const v = this.views.get(e.id);
+      if (!v) continue;
+      switch (e.type) {
+        case 'damage':
+          this.floatAt(v.c.x, v.c.y - 20, e.crit ? `치명 ${e.amount}` : `${e.amount}`, e.crit ? '#ffcf3b' : COLOR.red, e.crit ? 20 : 17);
+          this.tweens.add({ targets: v.circle, alpha: 0.3, duration: 70, yoyo: true, repeat: 1 });
+          break;
+        case 'burn':
+          this.floatAt(v.c.x, v.c.y - 20, `화상 ${e.amount}`, '#ff8a3b', 15);
+          break;
+        case 'heal':
+          if (e.amount > 0) this.floatAt(v.c.x, v.c.y - 20, `+${e.amount}`, '#7cff8a', 16);
+          break;
+        case 'effect':
+          break; // shown persistently above the token
+        case 'stunned':
+          this.floatAt(v.c.x, v.c.y - 20, '기절!', '#e0d0ff', 15);
+          break;
+        case 'death':
+          this.tweens.add({ targets: v.c, alpha: 0, y: v.c.y + 10, duration: 450, delay: 150 });
+          if (f.side === 'player') {
+            this.fallen.push(f.name);
+            if (!f.isLord) this.banner(`${f.name} 전사…`, COLOR.red);
+          }
+          break;
+      }
     }
-
-    this.s.intents = [];
-    this.s.turn += 1;
-    const o = checkOutcome(this.s);
-    if (o !== 'ongoing') return this.finish(o);
-
-    planEnemyTurn(this.s);
-    const spawned = spawnReinforcements(this.s);
-    if (spawned.length) this.banner(`황건적 증원 ${spawned.length}명!`, COLOR.red);
-    startPlayerTurn(this.s);
-    this.selectNextReady();
-    this.busy = false;
-    this.render();
   }
 
-  private finish(outcome: Outcome) {
-    this.busy = true;
-    this.render();
-    const victory = outcome === 'victory';
+  private finish(victory: boolean) {
+    if (this.over) return;
+    this.over = true;
+    this.pending = null;
+    const party = this.b.fighters.filter((f) => f.side === 'player');
     const lines: string[] = [];
-    if (this.levelUps.length) lines.push(...this.levelUps);
-    if (this.fallen.length) lines.push(`전사: ${this.fallen.join(', ')}`);
-
-    const result: ResultData = {
-      victory,
-      scenarioId: this.sc.id,
-      lines: victory ? (lines.length ? lines : ['모든 장수가 무사하다.']) : ['유비가 쓰러졌다…', '전투를 처음부터 다시 한다.'],
-      next: this.sc.next,
-    };
-
+    if (victory) {
+      for (const f of party) {
+        if (f.dead) continue;
+        const before = f.level;
+        const xp = battleXp(f);
+        const levels = gainXp(f, xp);
+        lines.push(`${f.name} (${SLOT_NAMES[f.slot]})  경험치 +${xp}${levels.length ? `  Lv ${before} → ${f.level}` : ''}`);
+      }
+      if (this.fallen.length) lines.push('', `전사: ${this.fallen.join(', ')}`);
+    } else {
+      lines.push(party.some((f) => f.isLord && f.dead) ? '유비가 쓰러졌다…' : '모든 장수가 쓰러졌다…');
+      lines.push('', '진형을 바꿔 다시 도전하자.', '(패배한 전투의 경험치와 전사는 기록되지 않는다)');
+    }
+    const result: ResultData = { victory, scenarioId: this.sc.id, lines, next: this.sc.next };
     this.time.delayedCall(900, () => {
       if (victory) {
         // Permanent: levels and deaths are written to the campaign save
-        writeSave(applyBattleResult(this.save, this.s, this.sc.next));
+        writeSave(applyBattleResult(this.save, party, this.sc.next));
         this.scene.start('Story', { lines: this.sc.outro, next: { key: 'Result', data: result } });
       } else {
         this.scene.start('Result', result);
@@ -242,226 +415,225 @@ export class BattleScene extends Phaser.Scene {
   }
 
   // ---------------------------------------------------------------------------
-  // Effects
+  // Views
   // ---------------------------------------------------------------------------
 
-  private playEvents(events: BattleEvent[]) {
-    for (const e of events) {
-      const u = getUnit(this.s, e.unitId);
-      if (e.type === 'damage') this.floatText(e.pos, `-${e.amount}`, COLOR.red);
-      if (e.type === 'levelUp') {
-        this.floatText(u.pos, `Lv ${e.level}!`, COLOR.gold, -18);
-        this.levelUps.push(`${u.name} 레벨 ${e.level} 달성`);
+  private createView(f: Fighter) {
+    const fill = f.side === 'player' ? COLOR.player : f.isBoss ? COLOR.boss : COLOR.enemy;
+    const r = radius(f);
+    const ring = this.add.circle(0, 0, r + 6).setStrokeStyle(3, 0xffe08a).setVisible(false);
+    const shadow = this.add.ellipse(0, r + 2, r * 2, 8, 0x000000, 0.35);
+    const circle = this.add.circle(0, 0, r, fill).setStrokeStyle(2, f.isLord || f.isBoss ? 0xffe08a : 0xffffff);
+    const tok = this.add
+      .text(0, 0, f.token, { fontFamily: FONT, fontSize: f.isBoss ? '24px' : '19px', color: f.side === 'player' ? '#ffffff' : '#1b1306', fontStyle: 'bold' })
+      .setOrigin(0.5);
+    const bars = this.add.graphics();
+    const fx = text(this, 0, -r - 14, '', 11, '#e0d0ff').setOrigin(0.5);
+    const parts: Phaser.GameObjects.GameObject[] = [shadow, ring, circle, tok, bars, fx];
+    if (f.side === 'player') parts.push(text(this, 0, r + 26, SLOT_NAMES[f.slot], 10, COLOR.dim).setOrigin(0.5));
+    const c = this.add.container(0, 0, parts).setDepth(10);
+    circle.setInteractive({ useHandCursor: true }).on('pointerup', () => this.onFighterTap(f));
+    this.views.set(f.id, { c, circle, ring, bars, fx, home: { x: 0, y: 0 } });
+  }
+
+  /** Heroes stand by formation slot; enemies stagger on the right. */
+  private layout() {
+    for (const f of this.b.fighters) {
+      const v = this.views.get(f.id);
+      if (!v || f.side !== 'player') continue;
+      v.home = { ...HERO_SPOTS[f.slot] };
+      v.c.setPosition(v.home.x, v.home.y);
+    }
+    const enemies = this.b.fighters.filter((f) => f.side === 'enemy' && this.views.has(f.id));
+    const step = enemies.length > 3 ? 46 : 56;
+    enemies.forEach((f, i) => {
+      const v = this.views.get(f.id)!;
+      v.home = { x: [238, 298][i % 2], y: 290 + (i - (enemies.length - 1) / 2) * step };
+      v.c.setPosition(v.home.x, v.home.y);
+    });
+  }
+
+  private refresh(actor: Fighter | null) {
+    for (const f of this.b.fighters) {
+      const v = this.views.get(f.id);
+      if (!v || f.dead) continue;
+      const r = radius(f);
+      const w = r * 2 + 6;
+      v.bars.clear();
+      v.bars.fillStyle(0x000000, 0.6).fillRect(-w / 2, r + 7, w, 6);
+      v.bars.fillStyle(f.side === 'player' ? 0x5ee06a : 0xff6b4a, 1).fillRect(-w / 2, r + 7, (w * f.hp) / f.maxHp, 6);
+      if (f.side === 'player') {
+        v.bars.fillStyle(0x000000, 0.6).fillRect(-w / 2, r + 14, w, 3);
+        v.bars.fillStyle(f.morale >= 100 ? 0xffd23b : 0xd9a441, 1).fillRect(-w / 2, r + 14, (w * f.morale) / 100, 3);
       }
-      if (e.type === 'death' && u.side === 'player') {
-        this.fallen.push(u.name);
-        if (!u.isLord) this.banner(`${u.name} 전사…`, COLOR.red);
-      }
-      if (e.type === 'bump') this.cameras.main.shake(80, 0.004);
+      v.fx.setText(f.effects.map((e) => EFFECT_LABEL[e.type]).join(' '));
+      v.ring.setVisible(f === actor);
+      const s = this.selectedSkill;
+      const targetable = !!this.pending && !!s && f.side === 'enemy' && (s.target === 'enemy' || s.target === 'allEnemies');
+      v.circle.setStrokeStyle(targetable ? 3 : 2, targetable ? 0xff3b30 : f.isLord || f.isBoss ? 0xffe08a : 0xffffff);
+    }
+    this.refreshOrder();
+    this.refreshPanel(actor);
+  }
+
+  private refreshOrder() {
+    this.orderLayer.removeAll(true);
+    previewOrder(this.b, 8).forEach((f, i) => {
+      const x = 58 + i * 36;
+      const fill = f.side === 'player' ? COLOR.player : f.isBoss ? COLOR.boss : COLOR.enemy;
+      const c = this.add.circle(x, 68, i === 0 ? 15 : 12, fill).setStrokeStyle(i === 0 ? 2 : 1, 0xffffff);
+      const t = this.add
+        .text(x, 68, f.token, { fontFamily: FONT, fontSize: i === 0 ? '14px' : '12px', color: f.side === 'player' ? '#fff' : '#1b1306', fontStyle: 'bold' })
+        .setOrigin(0.5);
+      this.orderLayer.add([c, t]);
+    });
+  }
+
+  private refreshPanel(actor: Fighter | null) {
+    const mine = !!this.pending && actor === this.pending.actor;
+    if (!actor) {
+      this.actorText.setText('');
+    } else if (actor.side === 'player') {
+      this.actorText.setText(
+        `${actor.name}의 차례 · ${SLOT_NAMES[actor.slot]}   Lv ${actor.level}\n체력 ${actor.hp}/${actor.maxHp}   기세 ${actor.morale}%   ${GENERALS[actor.id]?.title ?? ''}`,
+      );
+    } else {
+      this.actorText.setText(`적의 차례 · ${actor.name} (Lv ${actor.level})\n체력 ${actor.hp}/${actor.maxHp}`);
+    }
+
+    const skills = actor?.side === 'player' ? actor.skills : [];
+    this.skillButtons.forEach((btn, i) => {
+      const s = skills[i];
+      btn.c.setVisible(!!s);
+      if (!s || !actor) return;
+      const usable = canUse(actor, s);
+      const cd = actor.cooldowns[s.id] ?? 0;
+      btn.name.setText(s.name);
+      btn.sub.setText(s.ultimate ? `필살 · 기세 ${actor.morale}%` : cd > 0 ? `${cd}턴 후 사용` : s.cooldown ? `쿨타임 ${s.cooldown}` : '기본 공격');
+      btn.c.setAlpha(usable ? (mine || this.auto ? 1 : 0.6) : 0.35);
+      const selected = mine && this.selectedSkill === s;
+      btn.bg.setStrokeStyle(selected ? 3 : 1, selected ? 0xffd23b : s.ultimate && usable ? 0xff9f3b : COLOR.panelLine);
+      btn.bg.setFillStyle(s.ultimate && usable ? 0x5a3416 : 0x3a2f24);
+    });
+
+    const sel = mine ? this.selectedSkill : null;
+    if (sel) {
+      const how = sel.target === 'enemy' ? '공격할 적을 탭하세요.' : '스킬을 한 번 더 탭하면 사용합니다.';
+      this.descText.setText(`${sel.desc}\n▶ ${how}`);
+    } else if (actor?.side === 'player' && this.auto) {
+      this.descText.setText('자동 전투 중… (자동 OFF로 직접 스킬을 고를 수 있습니다)');
+    } else if (!actor) {
+      this.descText.setText(this.sc.objectiveText);
+    } else {
+      this.descText.setText('');
     }
   }
 
-  private floatText(p: Pos, s: string, color: string, dy = 0) {
-    const t = text(this, cx(p.x), cy(p.y) - 10 + dy, s, 16, color).setOrigin(0.5).setDepth(20).setStroke('#000', 3);
-    this.tweens.add({ targets: t, y: t.y - 26, alpha: 0, duration: 900, onComplete: () => t.destroy() });
+  // ---------------------------------------------------------------------------
+  // Static UI
+  // ---------------------------------------------------------------------------
+
+  private createHeader() {
+    this.add.rectangle(W / 2, 0, W, FIELD_TOP, COLOR.bg).setOrigin(0.5, 0).setDepth(5);
+    this.waveText = text(this, 12, 12, this.sc.title, 14, COLOR.gold).setDepth(6);
+    text(this, 12, 68, '순서', 11, COLOR.dim).setOrigin(0, 0.5).setDepth(6);
+    this.orderLayer = this.add.container(0, 0).setDepth(6);
+    this.autoBtn = button(this, W - 108, 22, 84, 30, this.autoLabel(), () => this.toggleAuto());
+    this.speedBtn = button(this, W - 32, 22, 50, 30, 'x1', () => this.toggleSpeed());
+    this.autoBtn.container.setDepth(6);
+    this.speedBtn.container.setDepth(6);
+  }
+
+  private createPanel() {
+    const panel = this.add.container(0, 0).setDepth(20);
+    const bg = this.add.rectangle(W / 2, PANEL_Y, W, H - PANEL_Y, COLOR.panel).setOrigin(0.5, 0).setStrokeStyle(1, COLOR.panelLine);
+    this.actorText = text(this, 14, PANEL_Y + 10, '', 13);
+    panel.add([bg, this.actorText]);
+    const bw = 108;
+    for (let i = 0; i < 3; i++) {
+      const x = 14 + bw / 2 + i * (bw + 9);
+      const rect = this.add.rectangle(0, 0, bw, 70, 0x3a2f24).setStrokeStyle(1, COLOR.panelLine);
+      const name = text(this, 0, -12, '', 15).setOrigin(0.5);
+      const sub = text(this, 0, 14, '', 11, COLOR.dim).setOrigin(0.5);
+      const c = this.add.container(x, PANEL_Y + 98, [rect, name, sub]).setSize(bw, 70);
+      c.setInteractive({ useHandCursor: true }).on('pointerup', () => this.onSkillTap(i));
+      panel.add(c);
+      this.skillButtons.push({ c, bg: rect, name, sub });
+    }
+    this.descText = text(this, 14, PANEL_Y + 144, '', 13).setWordWrapWidth(W - 28, true);
+    panel.add(this.descText);
+  }
+
+  private makeTextures() {
+    if (this.textures.exists('bg-far')) return;
+    const g = this.make.graphics({ x: 0, y: 0 }, false);
+    // Far: dusk sky + distant mountains
+    // Banded sky (gradient fills don't survive generateTexture on every renderer)
+    const sky = [0x2b3a5c, 0x3d4867, 0x575270, 0x725e6a, 0x8a6a5a];
+    sky.forEach((c, i) => g.fillStyle(c, 1).fillRect(0, i * 22, 360, 22));
+    g.fillStyle(0x4a4a63, 1);
+    for (let x = -40; x < 400; x += 90) g.fillTriangle(x, 110, x + 55, 30 + ((x * 7 + 400) % 30), x + 110, 110);
+    g.generateTexture('bg-far', 360, 110);
+    g.clear();
+    // Near: hills with peach trees
+    g.fillStyle(0x3f5a3a, 1);
+    for (let x = -30; x < 400; x += 120) g.fillEllipse(x + 60, 90, 180, 70);
+    for (let x = 20; x < 360; x += 75) {
+      g.fillStyle(0x4a3424, 1).fillRect(x, 52, 4, 20);
+      g.fillStyle(0xe89bb0, 1).fillCircle(x + 2, 48, 12);
+    }
+    g.generateTexture('bg-near', 360, 90);
+    g.clear();
+    // Ground: dirt road
+    g.fillStyle(0x6b5a3c, 1).fillRect(0, 0, 360, 222);
+    g.fillStyle(0x5c4d33, 1);
+    for (let x = 0; x < 360; x += 40) g.fillRect(x, 30 + ((x * 13) % 150), 18, 4);
+    g.fillStyle(0x4f6a3a, 1).fillRect(0, 0, 360, 10);
+    g.generateTexture('bg-ground', 360, 222);
+    g.destroy();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Helpers
+  // ---------------------------------------------------------------------------
+
+  private floatAt(x: number, y: number, s: string, color: string, size: number) {
+    const t = text(this, x, y, s, size, color).setOrigin(0.5).setDepth(30).setStroke('#000', 3);
+    this.tweens.add({ targets: t, y: y - 26, alpha: 0, duration: 900, delay: 150, onComplete: () => t.destroy() });
   }
 
   private banner(s: string, color: string) {
-    const t = text(this, W / 2, BOARD_Y + CELL * 4, s, 22, color).setOrigin(0.5).setDepth(30).setStroke('#000', 4);
-    this.tweens.add({ targets: t, alpha: 0, delay: 1100, duration: 500, onComplete: () => t.destroy() });
-  }
-
-  private flashUnit(u: Unit) {
-    const r = this.add.rectangle(cx(u.pos.x), cy(u.pos.y), CELL, CELL, 0xffffff, 0.5).setDepth(15);
-    this.tweens.add({ targets: r, alpha: 0, duration: 260, onComplete: () => r.destroy() });
+    const t = text(this, W / 2, 150, s, 22, color).setOrigin(0.5).setDepth(35).setStroke('#000', 4);
+    this.tweens.add({ targets: t, alpha: 0, delay: 900, duration: 400, onComplete: () => t.destroy() });
   }
 
   private wait(ms: number) {
     return new Promise<void>((res) => this.time.delayedCall(ms, res));
   }
 
-  // ---------------------------------------------------------------------------
-  // Rendering (the whole board is rebuilt on every state change — 64 tiles is cheap)
-  // ---------------------------------------------------------------------------
-
-  private render() {
-    this.boardLayer.removeAll(true);
-    const g = this.add.graphics();
-    this.boardLayer.add(g);
-    this.drawTerrain(g);
-
-    const sel = this.selected;
-    if (sel && !this.busy) {
-      if (!sel.moved) {
-        g.fillStyle(COLOR.move, 0.28);
-        for (const p of reachableTiles(this.s, sel)) if (!eq(p, sel.pos)) g.fillRect(tx(p.x), ty(p.y), CELL, CELL);
-      }
-      if (!sel.acted) {
-        g.lineStyle(2, COLOR.danger, 0.9);
-        for (const d of DIRS) {
-          for (const p of attackShape(this.s, sel, d).hits) {
-            const occ = unitAt(this.s, p);
-            if (occ && occ.side === 'enemy') g.strokeRect(tx(p.x) + 3, ty(p.y) + 3, CELL - 6, CELL - 6);
-          }
-        }
-      }
-      g.lineStyle(3, 0xffffff, 1).strokeRect(tx(sel.pos.x) + 1, ty(sel.pos.y) + 1, CELL - 2, CELL - 2);
-    }
-
-    const over = this.add.graphics();
-    this.labels = [];
-    this.drawIntents(g, over);
-    if (sel && this.pendingDir) this.drawPreview(g, sel, this.pendingDir);
-    for (const u of livingUnits(this.s)) this.drawUnit(u);
-    this.boardLayer.add([over, ...this.labels]);
-
-    this.updateHud();
-    this.updateInfo();
-    const canAct = !this.busy;
-    this.btnEnd.setEnabled(canAct);
-    this.btnWait.setEnabled(canAct && !!sel && !sel.acted);
-    const lm = this.lastMove;
-    this.btnUndo.setEnabled(canAct && !!lm && !getUnit(this.s, lm.unitId).acted);
-  }
-
-  private drawTerrain(g: Phaser.GameObjects.Graphics) {
-    for (let y = 0; y < this.s.height; y++) {
-      for (let x = 0; x < this.s.width; x++) {
-        const t = this.s.terrain[y][x];
-        g.fillStyle(COLOR.terrain[t], 1).fillRect(tx(x), ty(y), CELL, CELL);
-        g.lineStyle(1, 0x000000, 0.25).strokeRect(tx(x), ty(y), CELL, CELL);
-        const X = tx(x);
-        const Y = ty(y);
-        if (t === 'forest') {
-          g.fillStyle(0x1d3a1f, 1);
-          g.fillTriangle(X + 10, Y + 30, X + 18, Y + 12, X + 26, Y + 30);
-          g.fillTriangle(X + 20, Y + 36, X + 28, Y + 18, X + 36, Y + 36);
-        } else if (t === 'mountain') {
-          g.fillStyle(0x857868, 1).fillTriangle(X + 6, Y + 38, X + 22, Y + 8, X + 38, Y + 38);
-          g.fillStyle(0xd8d0c4, 1).fillTriangle(X + 17, Y + 18, X + 22, Y + 8, X + 27, Y + 18);
-        } else if (t === 'river') {
-          g.lineStyle(2, 0x6fa2cf, 0.7);
-          g.lineBetween(X + 6, Y + 16, X + 20, Y + 12);
-          g.lineBetween(X + 22, Y + 30, X + 38, Y + 26);
-        } else if (t === 'village') {
-          g.fillStyle(0x4a3826, 1).fillRect(X + 12, Y + 20, 20, 14);
-          g.fillStyle(0xa0522d, 1).fillTriangle(X + 8, Y + 22, X + 22, Y + 10, X + 36, Y + 22);
-        }
-      }
-    }
-  }
-
-  /** Danger tiles go under units; arrows and damage numbers go on top so tokens don't hide them. */
-  private drawIntents(under: Phaser.GameObjects.Graphics, over: Phaser.GameObjects.Graphics) {
-    for (const intent of this.s.intents) {
-      const e = getUnit(this.s, intent.unitId);
-      if (e.dead) continue;
-      const { path, hits } = attackShape(this.s, e, intent.dir);
-      under.fillStyle(COLOR.danger, 0.18);
-      for (const p of path) under.fillRect(tx(p.x), ty(p.y), CELL, CELL);
-      under.fillStyle(COLOR.danger, 0.45);
-      for (const p of hits) under.fillRect(tx(p.x), ty(p.y), CELL, CELL);
-
-      // Arrow from the attacker's edge toward the target
-      const d = intent.dir;
-      const last = path[path.length - 1] ?? e.pos;
-      const sx = cx(e.pos.x) + d.x * 17;
-      const sy = cy(e.pos.y) - 3 + d.y * 17;
-      // stop at the target token's edge so its letter stays readable
-      const ex = cx(last.x) - d.x * 27;
-      const ey = cy(last.y) - 3 - d.y * 27;
-      over.lineStyle(3, COLOR.danger, 1).lineBetween(sx, sy, ex, ey);
-      over.fillStyle(COLOR.danger, 1).fillTriangle(
-        ex + d.x * 9, ey + d.y * 9,
-        ex - d.x * 3 + d.y * 7, ey - d.y * 3 + d.x * 7,
-        ex - d.x * 3 - d.y * 7, ey - d.y * 3 - d.x * 7,
-      );
-      for (const p of hits) {
-        const t = unitAt(this.s, p);
-        const dmg = t ? effectiveDamage(this.s, t, e.power) : e.power;
-        over.fillStyle(0xb00000, 1).fillCircle(tx(p.x) + CELL - 9, ty(p.y) + 9, 8);
-        const label = text(this, tx(p.x) + CELL - 9, ty(p.y) + 9, `${dmg}`, 12, '#ffffff').setOrigin(0.5);
-        this.labels.push(label);
-      }
-    }
-  }
-
-  private drawPreview(g: Phaser.GameObjects.Graphics, u: Unit, dir: Pos) {
-    const { path, hits } = attackShape(this.s, u, dir);
-    g.fillStyle(COLOR.preview, 0.25);
-    for (const p of path) g.fillRect(tx(p.x), ty(p.y), CELL, CELL);
-    g.lineStyle(3, COLOR.preview, 1);
-    for (const p of hits) g.strokeRect(tx(p.x) + 2, ty(p.y) + 2, CELL - 4, CELL - 4);
-    if (u.attack === 'push') {
-      for (const p of hits) {
-        if (!unitAt(this.s, p)) continue;
-        const from = { x: cx(p.x), y: cy(p.y) };
-        g.lineStyle(3, COLOR.preview, 1).lineBetween(from.x, from.y, from.x + dir.x * CELL * 0.8, from.y + dir.y * CELL * 0.8);
-      }
-    }
-  }
-
-  private drawUnit(u: Unit) {
-    const x = cx(u.pos.x);
-    const y = cy(u.pos.y) - 3;
-    const fill = u.side === 'player' ? COLOR.player : u.isBoss ? COLOR.boss : COLOR.enemy;
-    const done = u.side === 'player' && u.acted && !this.busy;
-    const circle = this.add.circle(x, y, 16, fill, done ? 0.45 : 1).setStrokeStyle(2, u.isBoss || u.isLord ? 0xffe08a : 0xffffff);
-    const tok = this.add
-      .text(x, y, u.token, { fontFamily: FONT, fontSize: '17px', color: u.side === 'player' ? '#ffffff' : '#1b1306', fontStyle: 'bold' })
-      .setOrigin(0.5)
-      .setAlpha(done ? 0.6 : 1);
-    this.boardLayer.add([circle, tok]);
-
-    // HP pips
-    const pipW = Math.min(5, 34 / u.maxHp);
-    const startX = x - (pipW * u.maxHp) / 2;
-    const pips = this.add.graphics();
-    for (let i = 0; i < u.maxHp; i++) {
-      pips.fillStyle(i < u.hp ? (u.side === 'player' ? 0x7cff8a : 0xff8a5b) : 0x222222, 1);
-      pips.fillRect(startX + i * pipW, y + 19, pipW - 1, 4);
-    }
-    this.boardLayer.add(pips);
-  }
-
-  private updateHud() {
-    const players = livingUnits(this.s, 'player').filter((u) => !u.acted).length;
-    const status = this.busy ? '적의 차례…' : `행동 가능 ${players}명`;
-    this.hud.setText(`${this.sc.title}   ${this.s.turn}턴   ${status}\n${this.sc.objectiveText.split('\n')[0]}`);
-  }
-
-  private updateInfo() {
-    const u = this.inspected;
-    if (!u) {
-      this.info.setText(
-        `${this.sc.objectiveText}\n\n장수를 탭해 선택 → 파란 칸을 탭해 이동 → 붉은 테두리의 적을 탭하면 공격 미리보기, 한 번 더 탭하면 실행.\n붉게 칠해진 칸은 적이 다음 턴에 공격할 곳이다.`,
-      );
-      return;
-    }
-    const tpl = u.side === 'player' ? GENERALS[u.id] : Object.values(ENEMIES).find((t) => t.name === u.name);
-    const lines = [
-      `${u.name}  Lv ${u.level}   체력 ${u.hp}/${u.maxHp}   공격 ${u.power}   이동 ${u.move}`,
-      `[${ATTACK_NAME[u.attack]}] ${tpl?.desc ?? ''}`,
-    ];
-    if (u.side === 'player') {
-      lines.push(`경험치 ${u.xp}/${xpToNext(u.level)}${u.acted ? '   · 행동 완료' : u.moved ? '   · 이동 완료' : ''}`);
-      if (this.pendingDir && u === this.selected) {
-        const { hits } = attackShape(this.s, u, this.pendingDir);
-        const targets = hits.map((p) => unitAt(this.s, p)).filter((t): t is Unit => !!t);
-        const desc = targets.length
-          ? targets.map((t) => `${t.name} -${effectiveDamage(this.s, t, u.power)}`).join(', ')
-          : '대상 없음';
-        lines.push(`▶ 공격 미리보기: ${desc}  (같은 칸을 한 번 더 탭하면 실행)`);
-      }
-    } else {
-      const intent = this.s.intents.find((i) => i.unitId === u.id);
-      lines.push(intent ? '다음 턴에 붉은 칸을 공격한다.' : '이번 턴에는 공격하지 않는다.');
-    }
-    this.info.setText(lines.join('\n'));
+  private tweenAsync(cfg: Phaser.Types.Tweens.TweenBuilderConfig) {
+    return new Promise<void>((res) => this.tweens.add({ ...cfg, onComplete: () => res() }));
   }
 }
 
-const tx = (x: number) => BOARD_X + x * CELL;
-const ty = (y: number) => BOARD_Y + y * CELL;
-const cx = (x: number) => tx(x) + CELL / 2;
-const cy = (y: number) => ty(y) + CELL / 2;
+const radius = (f: Fighter) => (f.isBoss ? 27 : 21);
+
+function setButtonLabel(btn: Button, label: string) {
+  btn.container.list.forEach((o) => o instanceof Phaser.GameObjects.Text && o.setText(label));
+}
+
+function readPrefs(): { auto: boolean; fast: boolean } {
+  try {
+    return { auto: true, fast: false, ...JSON.parse(localStorage.getItem(PREFS_KEY) ?? '{}') };
+  } catch {
+    return { auto: true, fast: false };
+  }
+}
+
+function writePrefs(p: { auto: boolean; fast: boolean }) {
+  try {
+    localStorage.setItem(PREFS_KEY, JSON.stringify(p));
+  } catch {
+    // preferences just won't persist
+  }
+}

@@ -19,10 +19,11 @@ export class TitleScene extends Phaser.Scene {
       writeSave(fresh);
       startScenario(this, fresh);
     });
-    const cont = button(this, W / 2, 444, 200, 48, '이어하기', () => save && startScenario(this, save));
-    cont.setEnabled(!!save);
+    const label = save ? `이어하기 · ${SCENARIOS[save.scenarioId]?.title ?? ''}` : '이어하기';
+    const cont = button(this, W / 2, 444, 220, 48, label, () => save && startScenario(this, save));
+    cont.setEnabled(!!save && !!SCENARIOS[save.scenarioId]);
 
-    text(this, W / 2, H - 30, 'v0.1 · 1장 1화', 12, COLOR.dim).setOrigin(0.5);
+    text(this, W / 2, H - 30, 'v0.2 · 1장 황건적의 난 (6화)', 12, COLOR.dim).setOrigin(0.5);
   }
 
   private drawPetals() {
@@ -49,6 +50,6 @@ export function startScenario(scene: Phaser.Scene, save: CampaignSave) {
   scene.scene.start('Story', {
     heading: `${sc.chapter}\n「${sc.title}」`,
     lines: sc.intro,
-    next: { key: 'Battle', data: { scenarioId: sc.id } },
+    next: { key: 'Formation', data: { scenarioId: sc.id } },
   });
 }

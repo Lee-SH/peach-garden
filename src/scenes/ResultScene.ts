@@ -18,7 +18,7 @@ export class ResultScene extends Phaser.Scene {
 
   create(data: ResultData) {
     text(this, W / 2, 120, data.victory ? '승리' : '패배', 48, data.victory ? COLOR.gold : COLOR.red).setOrigin(0.5);
-    text(this, W / 2, 200, data.lines.join('\n'), 16).setOrigin(0.5, 0).setAlign('center').setWordWrapWidth(W - 40, true);
+    text(this, W / 2, 190, data.lines.join('\n'), 14).setOrigin(0.5, 0).setAlign('center').setWordWrapWidth(W - 32, true);
 
     if (data.victory) {
       if (data.next) {
@@ -27,11 +27,11 @@ export class ResultScene extends Phaser.Scene {
           if (save) startScenario(this, save);
         });
       } else {
-        text(this, W / 2, 440, '1장 2화 「청주 구원」은 준비 중입니다.', 14, COLOR.dim).setOrigin(0.5);
+        text(this, W / 2, 440, '1장 완결!\n2장 「반동탁 연합」은 준비 중입니다.', 14, COLOR.gold).setOrigin(0.5).setAlign('center');
       }
     } else {
-      button(this, W / 2, 480, 220, 48, '전투 다시 하기', () =>
-        this.scene.start('Battle', { scenarioId: data.scenarioId }),
+      button(this, W / 2, 500, 220, 48, '진형 바꿔 다시 하기', () =>
+        this.scene.start('Formation', { scenarioId: data.scenarioId }),
       );
     }
     button(this, W / 2, 580, 220, 44, '타이틀로', () => this.scene.start('Title'));
