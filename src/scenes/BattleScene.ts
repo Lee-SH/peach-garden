@@ -21,20 +21,13 @@ import { buildParty, buildWave, SCENARIOS, type Scenario } from '../data/scenari
 import { GENERALS } from '../data/units';
 import { button, COLOR, FONT, H, text, W, type Button } from '../ui/theme';
 import type { ResultData } from './ResultScene';
+import { drawField, FIELD_TOP, PANEL_Y } from '../ui/field';
+import { cellSpot } from '../core/formation';
 
-const FIELD_TOP = 92;
-const GROUND_Y = 190;
-const PANEL_Y = 412;
 const PREFS_KEY = 'peach-garden.prefs';
 
 const EFFECT_LABEL: Record<EffectType, string> = { atkUp: '공↑', defDown: '방↓', stun: '기절', burn: '화상' };
 
-/** Hero spots by slot (0 = 선봉, nearest to the enemy). */
-const HERO_SPOTS = [
-  { x: 136, y: 290 },
-  { x: 88, y: 238 },
-  { x: 60, y: 340 },
-];
 
 interface View {
   c: Phaser.GameObjects.Container;
@@ -101,11 +94,7 @@ export class BattleScene extends Phaser.Scene {
     this.auto = prefs.auto;
     this.fast = prefs.fast;
 
-    this.makeTextures();
-    this.add.rectangle(0, FIELD_TOP, W, GROUND_Y - FIELD_TOP, 0x2b3a5c).setOrigin(0);
-    this.bgFar = this.add.tileSprite(0, FIELD_TOP, W, 110, 'bg-far').setOrigin(0);
-    this.bgNear = this.add.tileSprite(0, FIELD_TOP + 50, W, 90, 'bg-near').setOrigin(0);
-    this.bgGround = this.add.tileSprite(0, GROUND_Y, W, PANEL_Y - GROUND_Y, 'bg-ground').setOrigin(0);
+    ({ far: this.bgFar, near: this.bgNear, ground: this.bgGround } = drawField(this));
 
     this.createHeader();
     this.createPanel();
@@ -430,18 +419,17 @@ export class BattleScene extends Phaser.Scene {
     const bars = this.add.graphics();
     const fx = text(this, 0, -r - 14, '', 11, '#e0d0ff').setOrigin(0.5);
     const parts: Phaser.GameObjects.GameObject[] = [shadow, ring, circle, tok, bars, fx];
-    if (f.side === 'player') parts.push(text(this, 0, r + 26, SLOT_NAMES[f.slot], 10, COLOR.dim).setOrigin(0.5));
     const c = this.add.container(0, 0, parts).setDepth(10);
     circle.setInteractive({ useHandCursor: true }).on('pointerup', () => this.onFighterTap(f));
     this.views.set(f.id, { c, circle, ring, bars, fx, home: { x: 0, y: 0 } });
   }
 
-  /** Heroes stand by formation slot; enemies stagger on the right. */
+  /** Heroes stand on their formation cell; enemies stagger on the right. */
   private layout() {
     for (const f of this.b.fighters) {
       const v = this.views.get(f.id);
       if (!v || f.side !== 'player') continue;
-      v.home = { ...HERO_SPOTS[f.slot] };
+      v.home = cellSpot({ col: f.slot, row: f.row });
       v.c.setPosition(v.home.x, v.home.y);
     }
     const enemies = this.b.fighters.filter((f) => f.side === 'enemy' && this.views.has(f.id));
@@ -564,34 +552,7 @@ export class BattleScene extends Phaser.Scene {
     panel.add(this.descText);
   }
 
-  private makeTextures() {
-    if (this.textures.exists('bg-far')) return;
-    const g = this.make.graphics({ x: 0, y: 0 }, false);
-    // Far: dusk sky + distant mountains
-    // Banded sky (gradient fills don't survive generateTexture on every renderer)
-    const sky = [0x2b3a5c, 0x3d4867, 0x575270, 0x725e6a, 0x8a6a5a];
-    sky.forEach((c, i) => g.fillStyle(c, 1).fillRect(0, i * 22, 360, 22));
-    g.fillStyle(0x4a4a63, 1);
-    for (let x = -40; x < 400; x += 90) g.fillTriangle(x, 110, x + 55, 30 + ((x * 7 + 400) % 30), x + 110, 110);
-    g.generateTexture('bg-far', 360, 110);
-    g.clear();
-    // Near: hills with peach trees
-    g.fillStyle(0x3f5a3a, 1);
-    for (let x = -30; x < 400; x += 120) g.fillEllipse(x + 60, 90, 180, 70);
-    for (let x = 20; x < 360; x += 75) {
-      g.fillStyle(0x4a3424, 1).fillRect(x, 52, 4, 20);
-      g.fillStyle(0xe89bb0, 1).fillCircle(x + 2, 48, 12);
-    }
-    g.generateTexture('bg-near', 360, 90);
-    g.clear();
-    // Ground: dirt road
-    g.fillStyle(0x6b5a3c, 1).fillRect(0, 0, 360, 222);
-    g.fillStyle(0x5c4d33, 1);
-    for (let x = 0; x < 360; x += 40) g.fillRect(x, 30 + ((x * 13) % 150), 18, 4);
-    g.fillStyle(0x4f6a3a, 1).fillRect(0, 0, 360, 10);
-    g.generateTexture('bg-ground', 360, 222);
-    g.destroy();
-  }
+
 
   // ---------------------------------------------------------------------------
   // Helpers

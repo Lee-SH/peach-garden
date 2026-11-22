@@ -2,6 +2,7 @@ import { battleXp, beginTurn, breather, chooseAction, endTurn, gainXp, nextActor
 import { applyBattleResult, newCampaign, type CampaignSave } from './save';
 import { buildParty, buildWave, SCENARIOS, SCENARIO_ORDER, type Scenario } from '../data/scenarios';
 import type { Battle } from './types';
+import { fromOrder, type Positions } from './formation';
 
 export interface BattleRun {
   victory: boolean;
@@ -48,8 +49,9 @@ export interface CampaignRun {
 }
 
 /** Play the whole campaign on auto with a fixed formation, retrying lost battles. */
-export function autoCampaign(formation: string[], seed: number, maxAttempts = 5): CampaignRun {
-  let save: CampaignSave = { ...newCampaign(), formation };
+export function autoCampaign(formation: string[] | Positions, seed: number, maxAttempts = 5): CampaignRun {
+  const positions = Array.isArray(formation) ? fromOrder(formation) : formation;
+  let save: CampaignSave = { ...newCampaign(), positions };
   const log: CampaignRun['log'] = [];
   let s = seed;
   for (const id of SCENARIO_ORDER) {

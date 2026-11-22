@@ -59,6 +59,8 @@ export interface Fighter {
   xp: number;
   /** formation slot: 0 = 선봉(front), 1 = 중군, 2 = 후군. Enemies use their wave index. */
   slot: number;
+  /** formation row (0 = top lane). Enemies: 0. */
+  row: number;
   /** counters for end-of-battle XP */
   stats: { dealt: number; taken: number; kills: number };
 }

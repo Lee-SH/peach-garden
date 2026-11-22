@@ -1,3 +1,4 @@
+import { DEFAULT_POSITIONS, type Positions } from './formation';
 import type { Fighter } from './types';
 
 export interface RosterEntry {
@@ -15,6 +16,8 @@ export interface CampaignSave {
   flags: Record<string, boolean>;
   /** general ids by slot: [선봉, 중군, 후군]. Optional for saves made before formations existed. */
   formation?: string[];
+  /** 2D formation grid (general id → cell). Takes precedence over `formation`. */
+  positions?: Positions;
 }
 
 const KEY = 'peach-garden.save.v1';
@@ -29,7 +32,7 @@ export function newCampaign(): CampaignSave {
       zhangfei: { level: 1, xp: 0, alive: true },
     },
     flags: {},
-    formation: ['guanyu', 'liubei', 'zhangfei'],
+    positions: { ...DEFAULT_POSITIONS },
   };
 }
 

@@ -23,7 +23,7 @@ export class TitleScene extends Phaser.Scene {
     const cont = button(this, W / 2, 444, 220, 48, label, () => save && startScenario(this, save));
     cont.setEnabled(!!save && !!SCENARIOS[save.scenarioId]);
 
-    text(this, W / 2, H - 30, 'v0.2 · 1장 황건적의 난 (6화)', 12, COLOR.dim).setOrigin(0.5);
+    text(this, W / 2, H - 30, 'v0.3 · 1장 황건적의 난 (6화)', 12, COLOR.dim).setOrigin(0.5);
   }
 
   private drawPetals() {

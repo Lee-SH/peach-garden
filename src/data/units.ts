@@ -149,6 +149,7 @@ export function makeFighter(
   side: Side,
   progress: { level: number; xp: number } = { level: 1, xp: 0 },
   slot = 0,
+  row = 0,
 ): Fighter {
   const lv = progress.level - 1;
   let maxHp: number, atk: number, def: number;
@@ -182,6 +183,7 @@ export function makeFighter(
     level: progress.level,
     xp: progress.xp,
     slot,
+    row,
     stats: { dealt: 0, taken: 0, kills: 0 },
   };
 }

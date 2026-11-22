@@ -1,5 +1,6 @@
 import type { Fighter } from '../core/types';
 import type { CampaignSave } from '../core/save';
+import { DEFAULT_POSITIONS, fromOrder, normalizePositions, type Positions } from '../core/formation';
 import { ENEMIES, GENERALS, makeFighter } from './units';
 
 export interface Line {
@@ -189,14 +190,23 @@ export const SCENARIOS: Record<string, Scenario> = {
 
 export const SCENARIO_ORDER = Object.keys(SCENARIOS);
 
-export const DEFAULT_FORMATION = ['guanyu', 'liubei', 'zhangfei'];
+/** Living generals of a scenario. */
+export function aliveParty(sc: Scenario, save: CampaignSave): string[] {
+  return sc.party.filter((id) => save.roster[id]?.alive !== false);
+}
 
-/** Living party members in formation order (slot 0 = 선봉), with campaign progress applied. */
+/** The campaign's formation grid for this scenario's living generals (legacy ordered saves converted). */
+export function partyPositions(sc: Scenario, save: CampaignSave): Positions {
+  const saved = save.positions ?? (save.formation ? fromOrder(save.formation) : DEFAULT_POSITIONS);
+  return normalizePositions(saved, aliveParty(sc, save));
+}
+
+/** Living party members, front column first, with campaign progress and grid cell applied (slot = column). */
 export function buildParty(sc: Scenario, save: CampaignSave): Fighter[] {
-  const formation = save.formation ?? DEFAULT_FORMATION;
-  const alive = sc.party.filter((id) => save.roster[id]?.alive !== false);
-  const ordered = [...formation.filter((id) => alive.includes(id)), ...alive.filter((id) => !formation.includes(id))];
-  return ordered.map((id, slot) => makeFighter(id, GENERALS[id], 'player', save.roster[id], slot));
+  const pos = partyPositions(sc, save);
+  return aliveParty(sc, save)
+    .sort((a, b) => pos[a].col - pos[b].col || pos[a].row - pos[b].row)
+    .map((id) => makeFighter(id, GENERALS[id], 'player', save.roster[id], pos[id].col, pos[id].row));
 }
 
 export function buildWave(sc: Scenario, index: number): Fighter[] {

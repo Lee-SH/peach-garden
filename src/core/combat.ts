@@ -14,6 +14,8 @@ export const SLOT_DAMAGE = [1.15, 1.0, 0.9];
 export const SLOT_AGGRO = [0.5, 0.3, 0.2];
 /** XP multiplier on hits dealt + hits taken */
 export const SLOT_XP = [1.5, 1.15, 0.95];
+/** damage taken by column: the rear is harder to reach, so stacking everyone in front has a cost */
+export const SLOT_TAKEN = [1.0, 0.9, 0.8];
 export const XP_PER_KILL = 2;
 export const XP_PER_BOSS_KILL = 6;
 
@@ -131,7 +133,8 @@ export function baseDamage(attacker: Fighter, target: Fighter, power: number) {
   const slotMult = attacker.side === 'player' ? SLOT_DAMAGE[attacker.slot] ?? 1 : 1;
   const atk = attacker.atk * slotMult * (hasEffect(attacker, 'atkUp') ? 1.3 : 1);
   const def = target.def * (hasEffect(target, 'defDown') ? 0.5 : 1);
-  return Math.max(1, Math.round((atk * power * 100) / (100 + def * DEF_WEIGHT)));
+  const taken = target.side === 'player' ? SLOT_TAKEN[target.slot] ?? 1 : 1;
+  return Math.max(1, Math.round((atk * power * 100 * taken) / (100 + def * DEF_WEIGHT)));
 }
 
 export function useSkill(b: Battle, actor: Fighter, skill: Skill, targetId?: string): CombatEvent[] {

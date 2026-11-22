@@ -248,9 +248,25 @@ describe('campaign', () => {
     expect(gy.atk).toBe(g.atk + g.growth!.atk * 2);
   });
 
-  it('party is ordered by the saved formation', () => {
-    const save = { ...newCampaign(), formation: ['zhangfei', 'guanyu', 'liubei'] };
+  it('legacy ordered formations still load', () => {
+    const save = { ...newCampaign(), positions: undefined, formation: ['zhangfei', 'guanyu', 'liubei'] };
     const party = buildParty(SCENARIOS['ch1-1'], save);
     expect(party.map((f) => [f.id, f.slot])).toEqual([['zhangfei', 0], ['guanyu', 1], ['liubei', 2]]);
+  });
+
+  it('grid positions set each general\'s column (role) and row', () => {
+    const save = {
+      ...newCampaign(),
+      positions: { liubei: { col: 0, row: 0 }, guanyu: { col: 0, row: 2 }, zhangfei: { col: 2, row: 1 } },
+    };
+    const party = buildParty(SCENARIOS['ch1-1'], save);
+    expect(party.map((f) => [f.id, f.slot, f.row])).toEqual([['liubei', 0, 0], ['guanyu', 0, 2], ['zhangfei', 2, 1]]);
+  });
+
+  it('the rear takes less damage than the front', () => {
+    const enemy = makeFighter('e', ENEMIES.rebel, 'enemy', { level: 5, xp: 0 });
+    const front = { ...hero('guanyu'), slot: 0 };
+    const rear = { ...hero('guanyu'), slot: 2 };
+    expect(baseDamage(enemy, rear, 1)).toBeLessThan(baseDamage(enemy, front, 1));
   });
 });
