@@ -4,7 +4,7 @@
  *
  *   node tools/rig-prep.mjs assets/raw/liubei-parts.png public/art/liubei/rig [upperArmCrop=175] [imgScale=0.4]
  *
- * Sheet cells: ref head torso / skirt upperarm forearm / pants shin sword.
+ * Sheet cells: ref head torso / skirt upperarm forearm / pants shin weapon.
  * Pivots, scales and joint points for each part are set by hand in src/data/rigs.ts, measured on the
  * full-size parts; the saved images are shrunk by `imgScale` (must match RigDef.imgScale) because a
  * huge image drawn at 1/10 size aliases badly.
@@ -24,7 +24,7 @@ if (!src || !out) {
 }
 mkdirSync(out, { recursive: true });
 execFileSync('node', [join(dirname(fileURLToPath(import.meta.url)), 'cut-sheet.mjs'), src, out, '--grid', '3x3', '--scale', '1',
-  'ref', 'head', 'torso', 'skirt', 'upperarm', 'forearm', 'pants', 'shin', 'sword'], { stdio: 'inherit' });
+  'ref', 'head', 'torso', 'skirt', 'upperarm', 'forearm', 'pants', 'shin', 'weapon'], { stdio: 'inherit' });
 
 const read = (n) => PNG.sync.read(readFileSync(join(out, `${n}.png`)));
 const write = (n, png) => writeFileSync(join(out, `${n}.png`), PNG.sync.write(png));

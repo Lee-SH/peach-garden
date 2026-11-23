@@ -5,7 +5,7 @@ import Phaser from 'phaser';
  * Every pose of a general is saved at the same pixel scale, plus anchors.json = feet x (0–1).
  */
 export type Pose = string;
-const BASE_POSES: Pose[] = ['idle', 'ult', 'portrait', 'atk1', 'atk2', 'atk3', 'atk4'];
+const BASE_POSES: Pose[] = ['idle', 'ult', 'portrait'];
 export const ATTACK_POSES: Pose[] = ['atk1', 'atk2', 'atk3', 'atk4'];
 
 interface RunCycle {
@@ -15,10 +15,16 @@ interface RunCycle {
   contact: number[];
 }
 
-/** Generals that have art, with their run cycle. Others are drawn as a round token. */
-const ART: Record<string, { run: RunCycle }> = {
+/**
+ * Generals that have frame art. Everyone has idle/ult/portrait; `attacks` are the attack images
+ * (one 'attack' when only the basic 2×2 sheet exists); `run` is optional (without it the idle image
+ * bobs). Generals without art are drawn as a round token.
+ */
+const ART: Record<string, { attacks: Pose[]; run?: RunCycle }> = {
   // r5 (a deep kneel without swords) is replaced by r2 so the bounce stays small and the swords stay in hand
-  liubei: { run: { frames: ['r1', 'r2', 'r3', 'r4', 'r2', 'r6'], contact: [1, 4] } },
+  liubei: { attacks: ATTACK_POSES, run: { frames: ['r1', 'r2', 'r3', 'r4', 'r2', 'r6'], contact: [1, 4] } },
+  guanyu: { attacks: ['attack'] },
+  zhangfei: { attacks: ['attack'] },
 };
 export const ART_IDS = Object.keys(ART);
 
@@ -38,7 +44,7 @@ const runKey = (id: string) => `run-${id}`;
 export function preloadArt(scene: Phaser.Scene) {
   for (const id of ART_IDS) {
     const base = `${import.meta.env.BASE_URL}art/${id}/`;
-    for (const pose of new Set([...BASE_POSES, ...ART[id].run.frames])) scene.load.image(artKey(id, pose), `${base}${pose}.png`);
+    for (const pose of new Set([...BASE_POSES, ...ART[id].attacks, ...(ART[id].run?.frames ?? [])])) scene.load.image(artKey(id, pose), `${base}${pose}.png`);
     scene.load.json(anchorKey(id), `${base}anchors.json`);
   }
 }
@@ -59,7 +65,7 @@ function feetX(scene: Phaser.Scene, id: string, pose: Pose) {
 
 /** Vertical origin: 1 = feet on the ground; run frames get their bounce damped. */
 function originY(scene: Phaser.Scene, id: string, pose: Pose) {
-  const frames = ART[id]?.run.frames ?? [];
+  const frames = ART[id]?.run?.frames ?? [];
   if (!frames.includes(pose)) return 1;
   const heights = frames.map((f) => texH(scene, id, f));
   const avg = heights.reduce((a, c) => a + c, 0) / heights.length;
@@ -83,13 +89,36 @@ export function addSprite(scene: Phaser.Scene, id: string, x: number, y: number)
 export function setPose(s: Phaser.GameObjects.Sprite, id: string, pose: Pose) {
   s.off(Phaser.Animations.Events.ANIMATION_UPDATE);
   s.anims.stop();
-  s.setTexture(artKey(id, pose));
-  anchor(s, id, pose);
+  stopBob(s);
+  // atk1–atk4 fall back to the single attack image
+  const p = pose.startsWith('atk') && !ART[id]?.attacks.includes(pose) ? ART[id]?.attacks[0] ?? 'idle' : pose;
+  s.setTexture(artKey(id, p));
+  anchor(s, id, p);
+}
+
+/** Without run frames: hop the idle image. */
+function bob(s: Phaser.GameObjects.Sprite) {
+  const y0 = (s.getData('y0') as number | undefined) ?? s.y;
+  s.setData('y0', y0);
+  s.setData('bob', s.scene.tweens.add({ targets: s, y: y0 - 5, duration: 110, yoyo: true, repeat: -1, ease: 'Sine.easeOut' }));
+}
+
+function stopBob(s: Phaser.GameObjects.Sprite) {
+  const tw = s.getData('bob') as Phaser.Tweens.Tween | undefined;
+  if (!tw) return;
+  tw.stop();
+  s.setData('bob', undefined);
+  s.setY(s.getData('y0') as number);
 }
 
 /** Loop the run cycle; `onContact` fires when a foot lands. */
 export function playRun(s: Phaser.GameObjects.Sprite, id: string, onContact?: () => void) {
-  const run = ART[id].run;
+  const run = ART[id]?.run;
+  if (!run) {
+    setPose(s, id, 'idle');
+    bob(s);
+    return;
+  }
   if (!s.scene.anims.exists(runKey(id))) {
     s.scene.anims.create({
       key: runKey(id),

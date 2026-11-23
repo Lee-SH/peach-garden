@@ -1,19 +1,5 @@
 import Phaser from 'phaser';
-import {
-  FLINCH,
-  idlePose,
-  MOVES,
-  RAISE,
-  REST,
-  RIG_PARTS,
-  RIGS,
-  RUN_CADENCE,
-  runPose,
-  type BoneName,
-  type Pose,
-  type RigDef,
-  type Vec,
-} from '../data/rigs';
+import { RIG_PARTS, RIGS, RUN_CADENCE, STYLES, type BoneName, type Pose, type RigDef, type Style, type Vec } from '../data/rigs';
 
 const partKey = (id: string, part: string) => `rig-${id}-${part}`;
 
@@ -37,13 +23,14 @@ const rot = ([x, y]: Vec, a: number): Vec => [x * Math.cos(a) - y * Math.sin(a),
 export class Rig {
   readonly root: Phaser.GameObjects.Container;
   private def: RigDef;
+  private style: Style;
   private images = new Map<BoneName, Phaser.GameObjects.Image>();
   /** image rotation that makes each limb hang straight down at 0° */
   private base = new Map<BoneName, number>();
   /** limb length (rig units) for children attached at the tip */
   private len = new Map<BoneName, number>();
   /** current pose values, tweened directly while holding */
-  private cur: Required<Pose> = { ...REST };
+  private cur!: Required<Pose>;
   private mode: Mode = 'idle';
   private t = 0;
   private phase = 0;
@@ -57,6 +44,8 @@ export class Rig {
     height: number,
   ) {
     this.def = RIGS[id]();
+    this.style = STYLES[this.def.weapon];
+    this.cur = { ...this.style.rest };
     this.root = scene.add.container(0, 0);
     for (const name of this.def.drawOrder) {
       const b = this.def.bones[name];
@@ -105,30 +94,30 @@ export class Rig {
   /** Ease into a held pose. */
   hold(pose: Pose, ms = 160) {
     this.mode = 'hold';
-    return this.tweenTo({ ...REST, ...pose }, ms, 'Quad.easeOut');
+    return this.tweenTo({ ...this.style.rest, ...pose }, ms, 'Quad.easeOut');
   }
 
   raise() {
-    return this.hold(RAISE, 180);
+    return this.hold(this.style.raise, 180);
   }
 
   /** Wind up and strike; resolves at the moment of impact (the pose is then held). */
   async attack(move: string) {
-    const m = MOVES[move] ?? MOVES.atk1;
+    const m = this.style.moves[move] ?? this.style.moves.atk1;
     this.mode = 'hold';
-    await this.tweenTo({ ...REST, ...m.wind }, m.windMs, 'Quad.easeOut');
+    await this.tweenTo({ ...this.style.rest, ...m.wind }, m.windMs, 'Quad.easeOut');
     if (m.spin) {
       const sx = this.root.scaleX;
       this.scene.tweens.add({ targets: this.root, scaleX: -sx, duration: m.strikeMs / 2, yoyo: true, ease: 'Sine.easeInOut' });
     }
-    await this.tweenTo({ ...REST, ...m.strike }, m.strikeMs, 'Quad.easeIn');
+    await this.tweenTo({ ...this.style.rest, ...m.strike }, m.strikeMs, 'Quad.easeIn');
   }
 
   /** Quick flinch, then back to whatever was playing. */
   hit() {
     if (this.mode !== 'idle') return;
     this.mode = 'hold';
-    void this.tweenTo({ ...this.cur, ...FLINCH }, 70, 'Quad.easeOut').then(() => this.idle());
+    void this.tweenTo({ ...this.cur, ...this.style.flinch }, 70, 'Quad.easeOut').then(() => this.idle());
   }
 
   // ---------------------------------------------------------------------------
@@ -162,10 +151,10 @@ export class Rig {
     if (!this.root.active) return;
     const dt = (delta / 1000) * this.speed;
     this.t += dt;
-    if (this.mode === 'idle') this.blendTo(idlePose(this.t), dt * 12);
+    if (this.mode === 'idle') this.blendTo(this.style.idle(this.t), dt * 12);
     else if (this.mode === 'run') {
       this.phase += dt * Math.PI * 2 * RUN_CADENCE;
-      this.blendTo(runPose(this.phase), dt * 25);
+      this.blendTo(this.style.run(this.phase), dt * 25);
     }
     this.layout();
   }
