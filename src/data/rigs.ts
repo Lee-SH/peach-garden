@@ -56,6 +56,14 @@ export type Pose = Partial<Record<BoneName, number>> & { bodyY?: number };
 const BACK = 0xb8b8c0;
 
 /**
+ * The AI art is very big-headed; heads are drawn at this fraction (around the neck, so they stay
+ * attached). Feedback: "머리가 몸에 비해 너무 크다 — 살짝만 줄이자".
+ */
+export const HEAD_SCALE = 0.84;
+/** head height above the neck joint at full size (rig units); used to keep the standing height right */
+const HEAD_ABOVE_NECK = 262;
+
+/**
  * Where things are on one general's parts sheet, in full-size part-image pixels
  * (measure with a grid overlay; see docs/design.md).
  */
@@ -84,7 +92,7 @@ function buildRig(m: Measure): RigDef {
     hips: { part: null, parent: null, at: [0, -205] },
     torso: { part: torso, parent: 'hips', at: [0, 0] },
     skirt: { part: { img: 'skirt', scale: m.skirt.scale ?? 0.68, pivot: m.skirt.pivot }, parent: 'torso', at: t([m.torso.pivot[0], m.torso.pivot[1] - 18]) },
-    head: { part: { img: 'head', scale: 1, pivot: m.head.pivot }, parent: 'torso', at: t(m.torso.neck) },
+    head: { part: { img: 'head', scale: HEAD_SCALE, pivot: m.head.pivot }, parent: 'torso', at: t(m.torso.neck) },
     aB1: { part: upper(BACK), parent: 'torso', at: t(m.torso.shoulderB) },
     aB2: { part: fore(BACK), parent: 'aB1', at: 'tip' },
     // a polearm is held by the front hand only (the back hand just reaches for the shaft)
@@ -102,7 +110,8 @@ function buildRig(m: Measure): RigDef {
     // a polearm passes behind the front arm but in front of the body
     drawOrder: ['sB', 'aB2', 'aB1', 'lB2', 'lB1', 'lF2', 'lF1', 'torso', 'skirt', 'head', 'sF', 'aF2', 'aF1'],
     hipHeight: 205,
-    height: 596,
+    // a smaller head makes the figure shorter; scaling to this height keeps it the same size on screen
+    height: 596 - HEAD_ABOVE_NECK * (1 - HEAD_SCALE),
     imgScale: 0.4,
     weapon: m.style,
   };

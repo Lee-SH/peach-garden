@@ -5,6 +5,8 @@ import { loadSave, newCampaign, writeSave, type CampaignSave } from '../core/sav
 import { aliveParty, partyPositions, SCENARIOS, type Scenario } from '../data/scenarios';
 import { GENERALS, makeFighter } from '../data/units';
 import { addSprite, hasArt, SPRITE_H } from '../data/art';
+import { readPrefs } from '../ui/prefs';
+import { hasRig, Rig } from '../ui/rig';
 import { drawField, FIELD_TOP, PANEL_Y } from '../ui/field';
 import { button, COLOR, FONT, H, text, W } from '../ui/theme';
 
@@ -102,7 +104,14 @@ export class FormationScene extends Phaser.Scene {
     let parts: Phaser.GameObjects.GameObject[];
     let mark: Token['mark'];
     let hit: Phaser.Geom.Rectangle;
-    if (hasArt(this, id)) {
+    if (readPrefs().rig && hasRig(this, id)) {
+      // same cutout figure as in battle (idle breathing)
+      mark = this.add.ellipse(0, R + 2, R * 2 + 18, 14).setStrokeStyle(2, 0xffffff, 0);
+      const rig = new Rig(this, id, SPRITE_H * 1.12);
+      rig.root.setPosition(0, R + 4);
+      parts = [mark, shadow, rig.root, tag];
+      hit = new Phaser.Geom.Rectangle(-24, R + 4 - SPRITE_H, 48, SPRITE_H + 4);
+    } else if (hasArt(this, id)) {
       mark = this.add.ellipse(0, R + 2, R * 2 + 18, 14).setStrokeStyle(2, 0xffffff, 0);
       parts = [mark, shadow, addSprite(this, id, 0, R + 4), tag];
       hit = new Phaser.Geom.Rectangle(-24, R + 4 - SPRITE_H, 48, SPRITE_H + 4);
