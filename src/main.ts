@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { H, W } from './ui/theme';
+import { H, RES, W } from './ui/theme';
 import { TitleScene } from './scenes/TitleScene';
 import { StoryScene } from './scenes/StoryScene';
 import { BattleScene } from './scenes/BattleScene';
@@ -14,8 +14,9 @@ const game = new Phaser.Game({
   scale: {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
-    width: W,
-    height: H,
+    // drawn at screen resolution; each scene's camera zooms the 360×640 world by RES (see hd())
+    width: W * RES,
+    height: H * RES,
   },
   // Crisper Korean text on high-DPI phones
   render: { antialias: true },

@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { loadSave } from '../core/save';
-import { button, COLOR, text, W } from '../ui/theme';
+import { button, COLOR, hd, text, W } from '../ui/theme';
 import { startScenario } from './TitleScene';
 
 export interface ResultData {
@@ -17,6 +17,7 @@ export class ResultScene extends Phaser.Scene {
   }
 
   create(data: ResultData) {
+    hd(this);
     text(this, W / 2, 120, data.victory ? '승리' : '패배', 48, data.victory ? COLOR.gold : COLOR.red).setOrigin(0.5);
     text(this, W / 2, 190, data.lines.join('\n'), 14).setOrigin(0.5, 0).setAlign('center').setWordWrapWidth(W - 32, true);
 

@@ -3,6 +3,23 @@ import Phaser from 'phaser';
 export const W = 360;
 export const H = 640;
 
+/**
+ * Render resolution. The layout is in a 360×640 world, but the canvas is drawn at the real screen
+ * pixel size (device pixel ratio × fit scale) and each scene's camera zooms in by RES — otherwise
+ * a 360-px-wide canvas is stretched ~3× on a phone and art/text look blurry and jagged.
+ */
+export const RES = (() => {
+  if (typeof window === 'undefined') return 1;
+  const fit = Math.min(window.innerWidth / W, window.innerHeight / H);
+  // capped at 3: a phone (DPR 3) gets ~1080×1920, enough for crisp art without straining the GPU
+  return Math.max(1, Math.min(3, Math.round((window.devicePixelRatio || 1) * fit)));
+})();
+
+/** Call first in every scene's create(): show the 360×640 world on the high-resolution canvas. */
+export function hd(scene: Phaser.Scene) {
+  scene.cameras.main.setZoom(RES).centerOn(W / 2, H / 2);
+}
+
 export const FONT = '"Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", sans-serif';
 
 export const COLOR = {
@@ -30,7 +47,7 @@ export const COLOR = {
 };
 
 export function text(scene: Phaser.Scene, x: number, y: number, s: string, size = 14, color = COLOR.text) {
-  return scene.add.text(x, y, s, { fontFamily: FONT, fontSize: `${size}px`, color, lineSpacing: 4 });
+  return scene.add.text(x, y, s, { fontFamily: FONT, fontSize: `${size}px`, color, lineSpacing: 4, resolution: RES });
 }
 
 export interface Button {

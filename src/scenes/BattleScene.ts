@@ -19,7 +19,7 @@ import { applyBattleResult, loadSave, newCampaign, writeSave, type CampaignSave 
 import type { Battle, CombatEvent, EffectType, Fighter, Skill } from '../core/types';
 import { buildParty, buildWave, SCENARIO_ORDER, SCENARIOS, type Scenario } from '../data/scenarios';
 import { GENERALS } from '../data/units';
-import { button, COLOR, FONT, H, setButtonLabel, text, W, type Button } from '../ui/theme';
+import { button, type Button, COLOR, FONT, H, hd, RES, setButtonLabel, text, W } from '../ui/theme';
 import type { ResultData } from './ResultScene';
 import { drawField, FIELD_TOP, PANEL_Y } from '../ui/field';
 import { cellSpot } from '../core/formation';
@@ -96,6 +96,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   create(data: { scenarioId: string }) {
+    hd(this);
     this.sc = SCENARIOS[data.scenarioId];
     this.save = loadSave() ?? newCampaign();
     this.b = { fighters: buildParty(this.sc, this.save), rng: Math.random };
@@ -615,7 +616,7 @@ export class BattleScene extends Phaser.Scene {
       const shadow = this.add.ellipse(0, r + 2, r * 2, 8, 0x000000, 0.35);
       const circle = this.add.circle(0, 0, r, fill).setStrokeStyle(2, f.isLord || f.isBoss ? 0xffe08a : 0xffffff);
       const tok = this.add
-        .text(0, 0, f.token, { fontFamily: FONT, fontSize: f.isBoss ? '24px' : '19px', color: f.side === 'player' ? '#ffffff' : '#1b1306', fontStyle: 'bold' })
+        .text(0, 0, f.token, { fontFamily: FONT, fontSize: f.isBoss ? '24px' : '19px', color: f.side === 'player' ? '#ffffff' : '#1b1306', fontStyle: 'bold', resolution: RES })
         .setOrigin(0.5);
       fx = text(this, 0, -r - 14, '', 11, '#e0d0ff').setOrigin(0.5);
       body = circle;
@@ -679,7 +680,7 @@ export class BattleScene extends Phaser.Scene {
       const fill = f.side === 'player' ? COLOR.player : f.isBoss ? COLOR.boss : COLOR.enemy;
       const c = this.add.circle(x, 68, i === 0 ? 15 : 12, fill).setStrokeStyle(i === 0 ? 2 : 1, 0xffffff);
       const t = this.add
-        .text(x, 68, f.token, { fontFamily: FONT, fontSize: i === 0 ? '14px' : '12px', color: f.side === 'player' ? '#fff' : '#1b1306', fontStyle: 'bold' })
+        .text(x, 68, f.token, { fontFamily: FONT, fontSize: i === 0 ? '14px' : '12px', color: f.side === 'player' ? '#fff' : '#1b1306', fontStyle: 'bold', resolution: RES })
         .setOrigin(0.5);
       this.orderLayer.add([c, t]);
     });

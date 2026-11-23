@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { RIGS, STYLES } from '../data/rigs';
-import { COLOR, text, W } from '../ui/theme';
+import { COLOR, hd, text, W } from '../ui/theme';
 import { Rig } from '../ui/rig';
 
 /** Dev check: one rig per pose, side by side (open with window.__game.scene.start('RigLab')). */
@@ -10,6 +10,7 @@ export class RigLabScene extends Phaser.Scene {
   }
 
   create(data: { id?: string; size?: number }) {
+    hd(this);
     const id = data.id ?? 'liubei';
     const size = data.size ?? 150;
     const { rest: REST, run: runPose, moves: MOVES, raise: RAISE } = STYLES[RIGS[id]().weapon];

@@ -3,7 +3,7 @@ import { loadSave, newCampaign, writeSave, type CampaignSave } from '../core/sav
 import { SCENARIOS } from '../data/scenarios';
 import { preloadArt } from '../data/art';
 import { preloadRigs } from '../ui/rig';
-import { button, COLOR, H, setButtonLabel, text, W, type Button } from '../ui/theme';
+import { button, type Button, COLOR, H, hd, setButtonLabel, text, W } from '../ui/theme';
 import { readPrefs, writePrefs } from '../ui/prefs';
 
 export class TitleScene extends Phaser.Scene {
@@ -17,6 +17,7 @@ export class TitleScene extends Phaser.Scene {
   }
 
   create() {
+    hd(this);
     this.drawPetals();
     text(this, W / 2, 190, '도원', 64, COLOR.gold).setOrigin(0.5);
     text(this, W / 2, 250, '桃園 · 삼국지 전술 RPG', 15, COLOR.dim).setOrigin(0.5);
@@ -38,7 +39,7 @@ export class TitleScene extends Phaser.Scene {
       setButtonLabel(anim, animLabel());
     });
 
-    text(this, W / 2, H - 30, 'v0.8.3 · 1장 황건적의 난 (6화)', 12, COLOR.dim).setOrigin(0.5);
+    text(this, W / 2, H - 30, 'v0.8.4 · 1장 황건적의 난 (6화)', 12, COLOR.dim).setOrigin(0.5);
   }
 
   private drawPetals() {

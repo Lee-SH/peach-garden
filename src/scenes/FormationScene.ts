@@ -8,7 +8,7 @@ import { addSprite, hasArt, SPRITE_H } from '../data/art';
 import { readPrefs } from '../ui/prefs';
 import { hasRig, Rig } from '../ui/rig';
 import { drawField, FIELD_TOP, PANEL_Y } from '../ui/field';
-import { button, COLOR, FONT, H, text, W } from '../ui/theme';
+import { button, COLOR, FONT, H, hd, RES, text, W } from '../ui/theme';
 
 const CELL_W = 50;
 const CELL_H = 58;
@@ -43,6 +43,7 @@ export class FormationScene extends Phaser.Scene {
   }
 
   create(data: { scenarioId: string }) {
+    hd(this);
     this.sc = SCENARIOS[data.scenarioId];
     this.save = loadSave() ?? newCampaign();
     this.ids = aliveParty(this.sc, this.save);
@@ -117,7 +118,7 @@ export class FormationScene extends Phaser.Scene {
       hit = new Phaser.Geom.Rectangle(-24, R + 4 - SPRITE_H, 48, SPRITE_H + 4);
     } else {
       mark = this.add.circle(0, 0, R, COLOR.player).setStrokeStyle(2, g.isLord ? 0xffe08a : 0xffffff);
-      const tok = this.add.text(0, 0, g.token, { fontFamily: FONT, fontSize: '19px', color: '#fff', fontStyle: 'bold' }).setOrigin(0.5);
+      const tok = this.add.text(0, 0, g.token, { fontFamily: FONT, fontSize: '19px', color: '#fff', fontStyle: 'bold', resolution: RES }).setOrigin(0.5);
       parts = [shadow, mark, tok, tag];
       hit = new Phaser.Geom.Rectangle(-R - 4, -R - 4, R * 2 + 8, R * 2 + 8);
     }

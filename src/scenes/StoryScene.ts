@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import type { Line } from '../data/scenarios';
 import { ENEMIES, GENERALS } from '../data/units';
 import { artKey, hasArt, hasPose } from '../data/art';
-import { button, COLOR, text, W } from '../ui/theme';
+import { button, COLOR, hd, text, W } from '../ui/theme';
 
 export interface StoryData {
   heading?: string;
@@ -28,6 +28,7 @@ export class StoryScene extends Phaser.Scene {
   }
 
   create() {
+    hd(this);
     if (this.story.heading) {
       text(this, W / 2, 150, this.story.heading, 22, COLOR.gold).setOrigin(0.5).setAlign('center');
     }
