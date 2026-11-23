@@ -37,7 +37,7 @@ interface View {
   /** character art (generals with art only) */
   sprite?: Phaser.GameObjects.Sprite;
   /** running effects while the run cycle plays */
-  running?: { bob: Phaser.Tweens.Tween; dust: Phaser.Time.TimerEvent; baseY: number };
+  running?: boolean;
   ring: Phaser.GameObjects.Shape;
   bars: Phaser.GameObjects.Graphics;
   fx: Phaser.GameObjects.Text;
@@ -341,7 +341,7 @@ export class BattleScene extends Phaser.Scene {
       const dx = t.c.x - v.c.x - dir * 54;
       const dy = t.c.y - v.c.y;
       this.startRun(v, actor.id);
-      await this.tweenAsync({ targets: v.c, x: v.c.x + dx, y: v.c.y + dy, duration: 320, ease: 'Sine.easeIn' });
+      await this.tweenAsync({ targets: v.c, x: v.c.x + dx, y: v.c.y + dy, duration: 360, ease: 'Linear' });
       this.stopRun(v);
       this.setPose(v, actor.id, pose);
       await this.tweenAsync({ targets: v.c, x: v.c.x + dir * 10, duration: 70, ease: 'Quad.easeOut' });
@@ -349,7 +349,7 @@ export class BattleScene extends Phaser.Scene {
       this.refresh(null);
       await this.wait(260);
       this.startRun(v, actor.id, true);
-      await this.tweenAsync({ targets: v.c, x: v.home.x, y: v.home.y, duration: 300, ease: 'Sine.easeInOut' });
+      await this.tweenAsync({ targets: v.c, x: v.home.x, y: v.home.y, duration: 340, ease: 'Linear' });
       this.stopRun(v);
     } else if (t) {
       const dx = t.c.x - v.c.x - dir * 50;
@@ -381,36 +381,27 @@ export class BattleScene extends Phaser.Scene {
     if (v.sprite) setPose(v.sprite, id, pose);
   }
 
-  /** Run cycle + bounce + forward lean + dust puffs. `back` = running back to the left. */
+  /** Run cycle with dust puffs on each foot contact. `back` = running back to the left (mirrored). */
   private startRun(v: View, id: string, back = false) {
     const sp = v.sprite;
     if (!sp) return;
     this.stopRun(v);
     sp.setFlipX(back);
-    playRun(sp, id);
-    sp.anims.timeScale = this.fast ? 2 : 1;
-    sp.setAngle(back ? -7 : 7);
-    const baseY = sp.y;
-    const bob = this.tweens.add({ targets: sp, y: baseY - 4, duration: 83, yoyo: true, repeat: -1, ease: 'Sine.easeOut' });
-    const dust = this.time.addEvent({
-      delay: 120,
-      loop: true,
-      callback: () => {
-        const puff = this.add.ellipse(v.c.x + (back ? 10 : -10), v.c.y + 24, 10, 6, 0xd8c8a0, 0.6).setDepth(9);
-        this.tweens.add({ targets: puff, x: puff.x + (back ? 14 : -14), y: puff.y - 6, scale: 1.8, alpha: 0, duration: 380, onComplete: () => puff.destroy() });
-      },
+    playRun(sp, id, () => {
+      const puff = this.add.ellipse(v.c.x + (back ? 8 : -8), v.c.y + 24, 10, 6, 0xd8c8a0, 0.65).setDepth(9);
+      this.tweens.add({ targets: puff, x: puff.x + (back ? 16 : -16), y: puff.y - 5, scale: 1.9, alpha: 0, duration: 400, onComplete: () => puff.destroy() });
     });
-    v.running = { bob, dust, baseY };
+    sp.anims.timeScale = this.fast ? 2 : 1;
+    v.running = true;
   }
 
   private stopRun(v: View) {
     if (!v.running || !v.sprite) return;
-    v.running.bob.stop();
-    v.running.dust.remove();
+    v.running = false;
     v.sprite.anims.stop();
-    v.sprite.setAngle(0).setFlipX(false).setY(v.running.baseY);
-    v.running = undefined;
+    v.sprite.setFlipX(false);
   }
+
 
   private async ultimateCutIn(actor: Fighter, s: Skill) {
     const bandColor = actor.side === 'player' ? 0x1e3f7a : 0x7a1e1e;
