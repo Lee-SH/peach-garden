@@ -138,7 +138,22 @@ const guanyu = () =>
     style: 'polearm',
   });
 
-export const RIGS: Record<string, () => RigDef> = { liubei, guanyu };
+const zhangfei = () =>
+  buildRig({
+    head: { pivot: [172, 265] },
+    torso: { pivot: [100, 212], neck: [95, 30], shoulderB: [30, 80], shoulderF: [170, 76] },
+    skirt: { pivot: [117, 15], scale: 0.64 },
+    upper: { pivot: [95, 18], tip: [55, 160] },
+    fore: { pivot: [55, 18], tip: [73, 205] },
+    thighB: { pivot: [55, 20], tip: [52, 170] },
+    thighF: { pivot: [50, 20], tip: [55, 172] },
+    shin: { pivot: [50, 20], tip: [60, 212] },
+    // Serpent Spear: drawn short on the sheet, scaled up to Guan Yu's weapon length
+    weapon: { pivot: [18, 200], scale: 1.8 },
+    style: 'polearm',
+  });
+
+export const RIGS: Record<string, () => RigDef> = { liubei, guanyu, zhangfei };
 export const RIG_PARTS = ['head', 'torso', 'skirt', 'upperarm', 'forearm', 'thigh_b', 'thigh_f', 'shin', 'weapon'];
 
 // ---------------------------------------------------------------------------
