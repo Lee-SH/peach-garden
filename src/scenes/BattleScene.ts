@@ -10,7 +10,6 @@ import {
   getFighter,
   nextActor,
   outcome,
-  previewOrder,
   SLOT_NAMES,
   startWave,
   useSkill,
@@ -84,7 +83,6 @@ export class BattleScene extends Phaser.Scene {
   private bgFar!: Phaser.GameObjects.TileSprite;
   private bgNear!: Phaser.GameObjects.TileSprite;
   private bgGround!: Phaser.GameObjects.TileSprite;
-  private orderLayer!: Phaser.GameObjects.Container;
   private waveText!: Phaser.GameObjects.Text;
   private skillButtons: SkillButton[] = [];
   private actorText!: Phaser.GameObjects.Text;
@@ -142,7 +140,8 @@ export class BattleScene extends Phaser.Scene {
         this.wave += 1;
         if (this.wave >= this.sc.waves.length) return this.finish(true);
         await this.nextWave();
-        if (!(await this.briefing())) return;
+        // on auto the whole battle plays through; manual play pauses before every group
+        if (!this.auto && !(await this.briefing())) return;
         continue;
       }
 
@@ -686,21 +685,7 @@ export class BattleScene extends Phaser.Scene {
         else v.sprite.clearTint();
       }
     }
-    this.refreshOrder();
     this.refreshPanel(actor);
-  }
-
-  private refreshOrder() {
-    this.orderLayer.removeAll(true);
-    previewOrder(this.b, 8).forEach((f, i) => {
-      const x = 58 + i * 36;
-      const fill = f.side === 'player' ? COLOR.player : f.isBoss ? COLOR.boss : COLOR.enemy;
-      const c = this.add.circle(x, 68, i === 0 ? 15 : 12, fill).setStrokeStyle(i === 0 ? 2 : 1, 0xffffff);
-      const t = this.add
-        .text(x, 68, f.token, { fontFamily: FONT, fontSize: i === 0 ? '14px' : '12px', color: f.side === 'player' ? '#fff' : '#1b1306', fontStyle: 'bold', resolution: RES })
-        .setOrigin(0.5);
-      this.orderLayer.add([c, t]);
-    });
   }
 
   private refreshPanel(actor: Fighter | null) {
@@ -750,8 +735,6 @@ export class BattleScene extends Phaser.Scene {
   private createHeader() {
     this.add.rectangle(W / 2, 0, W, FIELD_TOP, COLOR.bg).setOrigin(0.5, 0).setDepth(5);
     this.waveText = text(this, 12, 12, this.sc.title, 14, COLOR.gold).setDepth(6);
-    text(this, 12, 68, '순서', 11, COLOR.dim).setOrigin(0, 0.5).setDepth(6);
-    this.orderLayer = this.add.container(0, 0).setDepth(6);
     this.autoBtn = button(this, W - 108, 22, 84, 30, this.autoLabel(), () => this.toggleAuto());
     this.speedBtn = button(this, W - 32, 22, 50, 30, 'x1', () => this.toggleSpeed());
     this.autoBtn.container.setDepth(6);
