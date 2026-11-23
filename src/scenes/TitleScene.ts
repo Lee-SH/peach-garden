@@ -1,11 +1,16 @@
 import Phaser from 'phaser';
 import { loadSave, newCampaign, writeSave, type CampaignSave } from '../core/save';
 import { SCENARIOS } from '../data/scenarios';
+import { preloadArt } from '../data/art';
 import { button, COLOR, H, text, W } from '../ui/theme';
 
 export class TitleScene extends Phaser.Scene {
   constructor() {
     super('Title');
+  }
+
+  preload() {
+    preloadArt(this);
   }
 
   create() {
@@ -23,7 +28,7 @@ export class TitleScene extends Phaser.Scene {
     const cont = button(this, W / 2, 444, 220, 48, label, () => save && startScenario(this, save));
     cont.setEnabled(!!save && !!SCENARIOS[save.scenarioId]);
 
-    text(this, W / 2, H - 30, 'v0.3 · 1장 황건적의 난 (6화)', 12, COLOR.dim).setOrigin(0.5);
+    text(this, W / 2, H - 30, 'v0.4 · 1장 황건적의 난 (6화)', 12, COLOR.dim).setOrigin(0.5);
   }
 
   private drawPetals() {

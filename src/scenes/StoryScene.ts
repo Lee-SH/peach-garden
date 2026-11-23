@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import type { Line } from '../data/scenarios';
 import { ENEMIES, GENERALS } from '../data/units';
+import { artKey, hasArt } from '../data/art';
 import { button, COLOR, text, W } from '../ui/theme';
 
 export interface StoryData {
@@ -15,6 +16,7 @@ export class StoryScene extends Phaser.Scene {
   private speakerBadge!: Phaser.GameObjects.Container;
   private speakerName!: Phaser.GameObjects.Text;
   private body!: Phaser.GameObjects.Text;
+  private portrait!: Phaser.GameObjects.Image;
 
   constructor() {
     super('Story');
@@ -31,6 +33,8 @@ export class StoryScene extends Phaser.Scene {
     }
 
     const boxY = 400;
+    // Speaker portrait stands on the dialogue box (generals with art only)
+    this.portrait = this.add.image(20, boxY, '__DEFAULT').setOrigin(0, 1).setVisible(false);
     this.add.rectangle(W / 2, boxY + 95, W - 16, 190, COLOR.panel).setStrokeStyle(2, COLOR.panelLine);
     const circle = this.add.circle(0, 0, 22, COLOR.player).setStrokeStyle(2, 0xffffff);
     const tok = text(this, 0, 0, '', 20).setOrigin(0.5);
@@ -56,6 +60,13 @@ export class StoryScene extends Phaser.Scene {
       const foe = Object.values(ENEMIES).find((x) => x.name === line.speaker);
       (this.speakerBadge.list[0] as Phaser.GameObjects.Arc).setFillStyle(ally ? COLOR.player : COLOR.boss);
       (this.speakerBadge.list[1] as Phaser.GameObjects.Text).setText((ally ?? foe)?.token ?? line.speaker[0]);
+    }
+    const id = Object.keys(GENERALS).find((k) => GENERALS[k].name === line.speaker);
+    const showPortrait = !!id && hasArt(this, id);
+    this.portrait.setVisible(showPortrait);
+    if (showPortrait) {
+      this.portrait.setTexture(artKey(id, 'portrait'));
+      this.portrait.setScale(170 / this.portrait.height);
     }
     this.body.setPosition(24, isNarration ? 424 : 464).setColor(isNarration ? COLOR.dim : COLOR.text);
     this.body.setText(line.text);

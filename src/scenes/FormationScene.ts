@@ -4,6 +4,7 @@ import { CELL_X, CELL_Y, cellSpot, GRID_COLS, GRID_ROWS, moveTo, occupant, sameC
 import { loadSave, newCampaign, writeSave, type CampaignSave } from '../core/save';
 import { aliveParty, partyPositions, SCENARIOS, type Scenario } from '../data/scenarios';
 import { GENERALS, makeFighter } from '../data/units';
+import { addSprite, hasArt, SPRITE_H } from '../data/art';
 import { drawField, FIELD_TOP, PANEL_Y } from '../ui/field';
 import { button, COLOR, FONT, H, text, W } from '../ui/theme';
 
@@ -15,7 +16,8 @@ const SNAP = 44;
 
 interface Token {
   c: Phaser.GameObjects.Container;
-  circle: Phaser.GameObjects.Arc;
+  /** selection marker: the token's outline, or a ground ellipse under a sprite */
+  mark: Phaser.GameObjects.Shape;
   tag: Phaser.GameObjects.Text;
 }
 
@@ -96,17 +98,28 @@ export class FormationScene extends Phaser.Scene {
     const g = GENERALS[id];
     const { x, y } = cellSpot(this.pos[id]);
     const shadow = this.add.ellipse(0, R + 2, R * 2, 8, 0x000000, 0.35);
-    const circle = this.add.circle(0, 0, R, COLOR.player).setStrokeStyle(2, g.isLord ? 0xffe08a : 0xffffff);
-    const tok = this.add.text(0, 0, g.token, { fontFamily: FONT, fontSize: '19px', color: '#fff', fontStyle: 'bold' }).setOrigin(0.5);
-    const tag = text(this, 0, R + 10, '', 10).setOrigin(0.5).setStroke('#000000', 3);
-    const c = this.add.container(x, y, [shadow, circle, tok, tag]).setSize(R * 2 + 8, R * 2 + 8).setDepth(10);
-    c.setInteractive({ draggable: true, useHandCursor: true });
+    const tag = text(this, 0, R + 12, '', 10).setOrigin(0.5).setStroke('#000000', 3);
+    let parts: Phaser.GameObjects.GameObject[];
+    let mark: Token['mark'];
+    let hit: Phaser.Geom.Rectangle;
+    if (hasArt(this, id)) {
+      mark = this.add.ellipse(0, R + 2, R * 2 + 18, 14).setStrokeStyle(2, 0xffffff, 0);
+      parts = [mark, shadow, addSprite(this, id, 0, R + 4), tag];
+      hit = new Phaser.Geom.Rectangle(-24, R + 4 - SPRITE_H, 48, SPRITE_H + 4);
+    } else {
+      mark = this.add.circle(0, 0, R, COLOR.player).setStrokeStyle(2, g.isLord ? 0xffe08a : 0xffffff);
+      const tok = this.add.text(0, 0, g.token, { fontFamily: FONT, fontSize: '19px', color: '#fff', fontStyle: 'bold' }).setOrigin(0.5);
+      parts = [shadow, mark, tok, tag];
+      hit = new Phaser.Geom.Rectangle(-R - 4, -R - 4, R * 2 + 8, R * 2 + 8);
+    }
+    const c = this.add.container(x, y, parts).setDepth(10 + y / 1000);
+    c.setInteractive({ hitArea: hit, hitAreaCallback: Phaser.Geom.Rectangle.Contains, draggable: true, useHandCursor: true });
     c.setData('id', id);
     c.on('pointerdown', () => {
       this.selected = id;
       this.refresh();
     });
-    this.tokens.set(id, { c, circle, tag });
+    this.tokens.set(id, { c, mark, tag });
   }
 
   // ---------------------------------------------------------------------------
@@ -125,7 +138,7 @@ export class FormationScene extends Phaser.Scene {
     this.input.on('dragend', (_p: Phaser.Input.Pointer, obj: Phaser.GameObjects.Container) => {
       const id: string = obj.getData('id');
       const cell = this.cellNear(obj.x, obj.y);
-      obj.setDepth(10).setScale(1);
+      obj.setScale(1);
       this.highlight(null, id);
       if (cell) this.pos = moveTo(this.pos, id, cell);
       this.selected = id;
@@ -161,6 +174,7 @@ export class FormationScene extends Phaser.Scene {
   private placeTokens() {
     for (const [id, t] of this.tokens) {
       const { x, y } = cellSpot(this.pos[id]);
+      t.c.setDepth(10 + y / 1000);
       this.tweens.add({ targets: t.c, x, y, duration: 160, ease: 'Quad.easeOut' });
     }
   }
@@ -181,7 +195,9 @@ export class FormationScene extends Phaser.Scene {
     const pct = (n: number) => `${Math.round(n * 100)}%`;
     for (const [id, t] of this.tokens) {
       t.tag.setText(`표적 ${pct(chance[id])}`);
-      t.circle.setStrokeStyle(id === this.selected ? 3 : 2, id === this.selected ? 0xffd23b : GENERALS[id].isLord ? 0xffe08a : 0xffffff);
+      const sel = id === this.selected;
+      if (t.mark instanceof Phaser.GameObjects.Ellipse) t.mark.setStrokeStyle(3, 0xffd23b, sel ? 1 : 0);
+      else t.mark.setStrokeStyle(sel ? 3 : 2, sel ? 0xffd23b : GENERALS[id].isLord ? 0xffe08a : 0xffffff);
     }
 
     const id = this.selected;

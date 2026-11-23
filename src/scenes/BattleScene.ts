@@ -23,6 +23,7 @@ import { button, COLOR, FONT, H, text, W, type Button } from '../ui/theme';
 import type { ResultData } from './ResultScene';
 import { drawField, FIELD_TOP, PANEL_Y } from '../ui/field';
 import { cellSpot } from '../core/formation';
+import { addSprite, artKey, hasArt, SPRITE_H, type Pose } from '../data/art';
 
 const PREFS_KEY = 'peach-garden.prefs';
 
@@ -31,8 +32,11 @@ const EFFECT_LABEL: Record<EffectType, string> = { atkUp: '공↑', defDown: '�
 
 interface View {
   c: Phaser.GameObjects.Container;
-  circle: Phaser.GameObjects.Arc;
-  ring: Phaser.GameObjects.Arc;
+  /** what flashes when hit and receives taps: the sprite, or the round token */
+  body: Phaser.GameObjects.Image | Phaser.GameObjects.Arc;
+  /** character art (generals with art only) */
+  sprite?: Phaser.GameObjects.Image;
+  ring: Phaser.GameObjects.Shape;
   bars: Phaser.GameObjects.Graphics;
   fx: Phaser.GameObjects.Text;
   home: { x: number; y: number };
@@ -308,6 +312,8 @@ export class BattleScene extends Phaser.Scene {
     if (!v) return;
     const s = choice.skill;
     const dir = actor.side === 'player' ? 1 : -1;
+    // Ultimates and support skills raise the sword; attacks lunge
+    this.setPose(v, s.ultimate || s.power === 0 ? 'ult' : 'attack', actor.id);
     if (s.ultimate) await this.ultimateCutIn(actor, s);
     else this.floatAt(v.c.x, v.c.y - 46, s.name, actor.side === 'player' ? COLOR.blue : '#ffd27a', 13);
 
@@ -326,7 +332,12 @@ export class BattleScene extends Phaser.Scene {
       this.refresh(null);
       await this.wait(220);
     }
+    this.setPose(v, 'idle', actor.id);
     await this.wait(220);
+  }
+
+  private setPose(v: View, pose: Pose, id: string) {
+    v.sprite?.setTexture(artKey(id, pose));
   }
 
   private async ultimateCutIn(actor: Fighter, s: Skill) {
@@ -348,7 +359,7 @@ export class BattleScene extends Phaser.Scene {
       switch (e.type) {
         case 'damage':
           this.floatAt(v.c.x, v.c.y - 20, e.crit ? `치명 ${e.amount}` : `${e.amount}`, e.crit ? '#ffcf3b' : COLOR.red, e.crit ? 20 : 17);
-          this.tweens.add({ targets: v.circle, alpha: 0.3, duration: 70, yoyo: true, repeat: 1 });
+          this.tweens.add({ targets: v.body, alpha: 0.3, duration: 70, yoyo: true, repeat: 1 });
           break;
         case 'burn':
           this.floatAt(v.c.x, v.c.y - 20, `화상 ${e.amount}`, '#ff8a3b', 15);
@@ -410,18 +421,35 @@ export class BattleScene extends Phaser.Scene {
   private createView(f: Fighter) {
     const fill = f.side === 'player' ? COLOR.player : f.isBoss ? COLOR.boss : COLOR.enemy;
     const r = radius(f);
-    const ring = this.add.circle(0, 0, r + 6).setStrokeStyle(3, 0xffe08a).setVisible(false);
-    const shadow = this.add.ellipse(0, r + 2, r * 2, 8, 0x000000, 0.35);
-    const circle = this.add.circle(0, 0, r, fill).setStrokeStyle(2, f.isLord || f.isBoss ? 0xffe08a : 0xffffff);
-    const tok = this.add
-      .text(0, 0, f.token, { fontFamily: FONT, fontSize: f.isBoss ? '24px' : '19px', color: f.side === 'player' ? '#ffffff' : '#1b1306', fontStyle: 'bold' })
-      .setOrigin(0.5);
+    const art = f.side === 'player' && hasArt(this, f.id);
     const bars = this.add.graphics();
-    const fx = text(this, 0, -r - 14, '', 11, '#e0d0ff').setOrigin(0.5);
-    const parts: Phaser.GameObjects.GameObject[] = [shadow, ring, circle, tok, bars, fx];
+    let parts: Phaser.GameObjects.GameObject[];
+    let body: View['body'];
+    let ring: View['ring'];
+    let sprite: Phaser.GameObjects.Image | undefined;
+    let fx: Phaser.GameObjects.Text;
+    if (art) {
+      // Feet on the shadow; the actor marker is a gold ellipse on the ground
+      ring = this.add.ellipse(0, r + 2, r * 2 + 18, 14).setStrokeStyle(3, 0xffe08a).setVisible(false);
+      const shadow = this.add.ellipse(0, r + 2, r * 2, 8, 0x000000, 0.35);
+      sprite = addSprite(this, f.id, 0, r + 4);
+      fx = text(this, 0, r + 4 - SPRITE_H - 8, '', 11, '#e0d0ff').setOrigin(0.5);
+      body = sprite;
+      parts = [ring, shadow, sprite, bars, fx];
+    } else {
+      ring = this.add.circle(0, 0, r + 6).setStrokeStyle(3, 0xffe08a).setVisible(false);
+      const shadow = this.add.ellipse(0, r + 2, r * 2, 8, 0x000000, 0.35);
+      const circle = this.add.circle(0, 0, r, fill).setStrokeStyle(2, f.isLord || f.isBoss ? 0xffe08a : 0xffffff);
+      const tok = this.add
+        .text(0, 0, f.token, { fontFamily: FONT, fontSize: f.isBoss ? '24px' : '19px', color: f.side === 'player' ? '#ffffff' : '#1b1306', fontStyle: 'bold' })
+        .setOrigin(0.5);
+      fx = text(this, 0, -r - 14, '', 11, '#e0d0ff').setOrigin(0.5);
+      body = circle;
+      parts = [shadow, ring, circle, tok, bars, fx];
+    }
     const c = this.add.container(0, 0, parts).setDepth(10);
-    circle.setInteractive({ useHandCursor: true }).on('pointerup', () => this.onFighterTap(f));
-    this.views.set(f.id, { c, circle, ring, bars, fx, home: { x: 0, y: 0 } });
+    body.setInteractive({ useHandCursor: true }).on('pointerup', () => this.onFighterTap(f));
+    this.views.set(f.id, { c, body, sprite, ring, bars, fx, home: { x: 0, y: 0 } });
   }
 
   /** Heroes stand on their formation cell; enemies stagger on the right. */
@@ -430,7 +458,7 @@ export class BattleScene extends Phaser.Scene {
       const v = this.views.get(f.id);
       if (!v || f.side !== 'player') continue;
       v.home = cellSpot({ col: f.slot, row: f.row });
-      v.c.setPosition(v.home.x, v.home.y);
+      v.c.setPosition(v.home.x, v.home.y).setDepth(10 + v.home.y / 1000);
     }
     const enemies = this.b.fighters.filter((f) => f.side === 'enemy' && this.views.has(f.id));
     const step = enemies.length > 3 ? 46 : 56;
@@ -458,7 +486,8 @@ export class BattleScene extends Phaser.Scene {
       v.ring.setVisible(f === actor);
       const s = this.selectedSkill;
       const targetable = !!this.pending && !!s && f.side === 'enemy' && (s.target === 'enemy' || s.target === 'allEnemies');
-      v.circle.setStrokeStyle(targetable ? 3 : 2, targetable ? 0xff3b30 : f.isLord || f.isBoss ? 0xffe08a : 0xffffff);
+      if (v.body instanceof Phaser.GameObjects.Arc)
+        v.body.setStrokeStyle(targetable ? 3 : 2, targetable ? 0xff3b30 : f.isLord || f.isBoss ? 0xffe08a : 0xffffff);
     }
     this.refreshOrder();
     this.refreshPanel(actor);
