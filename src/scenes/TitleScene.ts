@@ -2,7 +2,9 @@ import Phaser from 'phaser';
 import { loadSave, newCampaign, writeSave, type CampaignSave } from '../core/save';
 import { SCENARIOS } from '../data/scenarios';
 import { preloadArt } from '../data/art';
-import { button, COLOR, H, text, W } from '../ui/theme';
+import { preloadRigs } from '../ui/rig';
+import { button, COLOR, H, setButtonLabel, text, W, type Button } from '../ui/theme';
+import { readPrefs, writePrefs } from '../ui/prefs';
 
 export class TitleScene extends Phaser.Scene {
   constructor() {
@@ -11,6 +13,7 @@ export class TitleScene extends Phaser.Scene {
 
   preload() {
     preloadArt(this);
+    preloadRigs(this);
   }
 
   create() {
@@ -28,7 +31,14 @@ export class TitleScene extends Phaser.Scene {
     const cont = button(this, W / 2, 444, 220, 48, label, () => save && startScenario(this, save));
     cont.setEnabled(!!save && !!SCENARIOS[save.scenarioId]);
 
-    text(this, W / 2, H - 30, 'v0.5.2 · 1장 황건적의 난 (6화)', 12, COLOR.dim).setOrigin(0.5);
+    // Compare the two animation styles (cutout rig vs frame art) — only affects generals with a rig
+    const animLabel = () => `동작 방식: ${readPrefs().rig ? '관절 (시험 중)' : '프레임 그림'}`;
+    const anim: Button = button(this, W / 2, 520, 220, 38, animLabel(), () => {
+      writePrefs({ rig: !readPrefs().rig });
+      setButtonLabel(anim, animLabel());
+    });
+
+    text(this, W / 2, H - 30, 'v0.6 · 1장 황건적의 난 (6화)', 12, COLOR.dim).setOrigin(0.5);
   }
 
   private drawPetals() {

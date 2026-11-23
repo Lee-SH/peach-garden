@@ -66,3 +66,7 @@ export function button(
     },
   };
 }
+
+export function setButtonLabel(btn: Button, label: string) {
+  btn.container.list.forEach((o) => o instanceof Phaser.GameObjects.Text && o.setText(label));
+}

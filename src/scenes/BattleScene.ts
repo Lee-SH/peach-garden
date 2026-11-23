@@ -19,13 +19,14 @@ import { applyBattleResult, loadSave, newCampaign, writeSave, type CampaignSave 
 import type { Battle, CombatEvent, EffectType, Fighter, Skill } from '../core/types';
 import { buildParty, buildWave, SCENARIOS, type Scenario } from '../data/scenarios';
 import { GENERALS } from '../data/units';
-import { button, COLOR, FONT, H, text, W, type Button } from '../ui/theme';
+import { button, COLOR, FONT, H, setButtonLabel, text, W, type Button } from '../ui/theme';
 import type { ResultData } from './ResultScene';
 import { drawField, FIELD_TOP, PANEL_Y } from '../ui/field';
 import { cellSpot } from '../core/formation';
+import { readPrefs, writePrefs } from '../ui/prefs';
+import { hasRig, Rig } from '../ui/rig';
 import { addSprite, ATTACK_POSES, hasArt, playRun, setPose, SPRITE_H, type Pose } from '../data/art';
 
-const PREFS_KEY = 'peach-garden.prefs';
 
 const EFFECT_LABEL: Record<EffectType, string> = { atkUp: '공↑', defDown: '방↓', stun: '기절', burn: '화상' };
 
@@ -33,7 +34,11 @@ const EFFECT_LABEL: Record<EffectType, string> = { atkUp: '공↑', defDown: '�
 interface View {
   c: Phaser.GameObjects.Container;
   /** what flashes when hit and receives taps: the sprite, or the round token */
-  body: Phaser.GameObjects.Sprite | Phaser.GameObjects.Arc;
+  body: Phaser.GameObjects.Sprite | Phaser.GameObjects.Arc | Phaser.GameObjects.Container;
+  /** cutout rig (generals with rig parts, when the rig option is on) */
+  rig?: Rig;
+  /** dust puffs while a rig runs */
+  dust?: Phaser.Time.TimerEvent;
   /** character art (generals with art only) */
   sprite?: Phaser.GameObjects.Sprite;
   /** running effects while the run cycle plays */
@@ -64,6 +69,7 @@ export class BattleScene extends Phaser.Scene {
   private views = new Map<string, View>();
   private auto = true;
   private fast = false;
+  private useRig = true;
   private over = false;
 
   private pending: { actor: Fighter; resolve: (c: Choice) => void } | null = null;
@@ -99,6 +105,7 @@ export class BattleScene extends Phaser.Scene {
     const prefs = readPrefs();
     this.auto = prefs.auto;
     this.fast = prefs.fast;
+    this.useRig = prefs.rig;
 
     ({ far: this.bgFar, near: this.bgNear, ground: this.bgGround } = drawField(this));
 
@@ -221,6 +228,7 @@ export class BattleScene extends Phaser.Scene {
     const s = this.fast ? 2 : 1;
     this.time.timeScale = s;
     this.tweens.timeScale = s;
+    for (const v of this.views?.values() ?? []) v.rig?.setSpeed(s);
     if (this.speedBtn) setButtonLabel(this.speedBtn, `x${s}`);
   }
 
@@ -290,7 +298,7 @@ export class BattleScene extends Phaser.Scene {
   private runTween(v: View, x: number, duration: number) {
     this.tweens.add({ targets: v.c, x, duration, ease: 'Linear' });
     const id = this.idOf(v);
-    if (v.sprite && id) this.startRun(v, id);
+    if ((v.sprite || v.rig) && id) this.startRun(v, id);
     else this.tweens.add({ targets: v.c, y: v.home.y - 7, duration: 105, yoyo: true, repeat: Math.max(0, Math.floor(duration / 210) - 1) });
   }
 
@@ -332,19 +340,23 @@ export class BattleScene extends Phaser.Scene {
     const pose = this.skillPose(s);
     // Ultimates and support skills raise the sword before anything else
     if (s.ultimate || s.power === 0) this.setPose(v, actor.id, 'ult');
+    const animated = !!(v.sprite || v.rig);
     if (s.ultimate) await this.ultimateCutIn(actor, s);
     else this.floatAt(v.c.x, v.c.y - 46, s.name, actor.side === 'player' ? COLOR.blue : '#ffd27a', 13);
 
     const t = choice.targetId ? this.views.get(choice.targetId) : undefined;
-    if (t && v.sprite) {
+    if (t && animated) {
       // Run up to the target, strike, run back
       const dx = t.c.x - v.c.x - dir * 54;
       const dy = t.c.y - v.c.y;
       this.startRun(v, actor.id);
       await this.tweenAsync({ targets: v.c, x: v.c.x + dx, y: v.c.y + dy, duration: 360, ease: 'Linear' });
       this.stopRun(v);
-      this.setPose(v, actor.id, pose);
-      await this.tweenAsync({ targets: v.c, x: v.c.x + dir * 10, duration: 70, ease: 'Quad.easeOut' });
+      if (v.rig) await v.rig.attack(pose);
+      else {
+        this.setPose(v, actor.id, pose);
+        await this.tweenAsync({ targets: v.c, x: v.c.x + dir * 10, duration: 70, ease: 'Quad.easeOut' });
+      }
       this.showEvents(events);
       this.refresh(null);
       await this.wait(260);
@@ -359,7 +371,8 @@ export class BattleScene extends Phaser.Scene {
       this.refresh(null);
       await this.tweenAsync({ targets: v.c, x: v.home.x, y: v.home.y, duration: 190, ease: 'Quad.easeOut' });
     } else {
-      if (s.power > 0) this.setPose(v, actor.id, pose);
+      if (s.power > 0 && v.rig) await v.rig.attack(pose);
+      else if (s.power > 0) this.setPose(v, actor.id, pose);
       await this.tweenAsync({ targets: v.c, x: v.home.x + dir * 24, duration: 110, yoyo: true });
       if (s.power > 0) this.cameras.main.shake(140, 0.006);
       this.showEvents(events);
@@ -379,27 +392,39 @@ export class BattleScene extends Phaser.Scene {
 
   private setPose(v: View, id: string, pose: Pose) {
     if (v.sprite) setPose(v.sprite, id, pose);
+    if (v.rig) {
+      if (pose === 'idle') v.rig.idle();
+      else if (pose === 'ult') void v.rig.raise();
+      else void v.rig.attack(pose);
+    }
   }
 
   /** Run cycle with dust puffs on each foot contact. `back` = running back to the left (mirrored). */
   private startRun(v: View, id: string, back = false) {
-    const sp = v.sprite;
-    if (!sp) return;
     this.stopRun(v);
-    sp.setFlipX(back);
-    playRun(sp, id, () => {
-      const puff = this.add.ellipse(v.c.x + (back ? 8 : -8), v.c.y + 24, 10, 6, 0xd8c8a0, 0.65).setDepth(9);
-      this.tweens.add({ targets: puff, x: puff.x + (back ? 16 : -16), y: puff.y - 5, scale: 1.9, alpha: 0, duration: 400, onComplete: () => puff.destroy() });
-    });
-    sp.anims.timeScale = this.fast ? 2 : 1;
+    const puff = () => {
+      const p = this.add.ellipse(v.c.x + (back ? 8 : -8), v.c.y + 24, 10, 6, 0xd8c8a0, 0.65).setDepth(9);
+      this.tweens.add({ targets: p, x: p.x + (back ? 16 : -16), y: p.y - 5, scale: 1.9, alpha: 0, duration: 400, onComplete: () => p.destroy() });
+    };
+    if (v.rig) {
+      v.rig.run(back);
+      v.dust = this.time.addEvent({ delay: 192, loop: true, callback: puff });
+    } else if (v.sprite) {
+      v.sprite.setFlipX(back);
+      playRun(v.sprite, id, puff);
+      v.sprite.anims.timeScale = this.fast ? 2 : 1;
+    } else return;
     v.running = true;
   }
 
   private stopRun(v: View) {
-    if (!v.running || !v.sprite) return;
+    if (!v.running) return;
     v.running = false;
-    v.sprite.anims.stop();
-    v.sprite.setFlipX(false);
+    v.dust?.remove();
+    v.dust = undefined;
+    v.rig?.idle();
+    v.sprite?.anims.stop();
+    v.sprite?.setFlipX(false);
   }
 
 
@@ -423,6 +448,7 @@ export class BattleScene extends Phaser.Scene {
         case 'damage':
           this.floatAt(v.c.x, v.c.y - 20, e.crit ? `치명 ${e.amount}` : `${e.amount}`, e.crit ? '#ffcf3b' : COLOR.red, e.crit ? 20 : 17);
           this.tweens.add({ targets: v.body, alpha: 0.3, duration: 70, yoyo: true, repeat: 1 });
+          v.rig?.hit();
           break;
         case 'burn':
           this.floatAt(v.c.x, v.c.y - 20, `화상 ${e.amount}`, '#ff8a3b', 15);
@@ -484,14 +510,29 @@ export class BattleScene extends Phaser.Scene {
   private createView(f: Fighter) {
     const fill = f.side === 'player' ? COLOR.player : f.isBoss ? COLOR.boss : COLOR.enemy;
     const r = radius(f);
-    const art = f.side === 'player' && hasArt(this, f.id);
+    const useRig = f.side === 'player' && this.useRig && hasRig(this, f.id);
+    const art = f.side === 'player' && !useRig && hasArt(this, f.id);
+    let rig: Rig | undefined;
     const bars = this.add.graphics();
     let parts: Phaser.GameObjects.GameObject[];
     let body: View['body'];
     let ring: View['ring'];
     let sprite: Phaser.GameObjects.Sprite | undefined;
     let fx: Phaser.GameObjects.Text;
-    if (art) {
+    if (useRig) {
+      ring = this.add.ellipse(0, r + 2, r * 2 + 18, 14).setStrokeStyle(3, 0xffe08a).setVisible(false);
+      const shadow = this.add.ellipse(0, r + 2, r * 2, 8, 0x000000, 0.35);
+      // the rig is slimmer than the frame art, so it stands a little taller to read the same size
+      rig = new Rig(this, f.id, SPRITE_H * 1.12);
+      rig.root.setPosition(0, r + 4);
+      rig.setSpeed(this.fast ? 2 : 1);
+      // tap area in rig units (the rig root is scaled down)
+      const k = 1 / rig.root.scaleY;
+      rig.root.setInteractive(new Phaser.Geom.Rectangle(-24 * k, -SPRITE_H * k, 48 * k, (SPRITE_H + 4) * k), Phaser.Geom.Rectangle.Contains);
+      fx = text(this, 0, r + 4 - SPRITE_H - 8, '', 11, '#e0d0ff').setOrigin(0.5);
+      body = rig.root;
+      parts = [ring, shadow, rig.root, bars, fx];
+    } else if (art) {
       // Feet on the shadow; the actor marker is a gold ellipse on the ground
       ring = this.add.ellipse(0, r + 2, r * 2 + 18, 14).setStrokeStyle(3, 0xffe08a).setVisible(false);
       const shadow = this.add.ellipse(0, r + 2, r * 2, 8, 0x000000, 0.35);
@@ -511,8 +552,9 @@ export class BattleScene extends Phaser.Scene {
       parts = [shadow, ring, circle, tok, bars, fx];
     }
     const c = this.add.container(0, 0, parts).setDepth(10);
-    body.setInteractive({ useHandCursor: true }).on('pointerup', () => this.onFighterTap(f));
-    this.views.set(f.id, { c, body, sprite, ring, bars, fx, home: { x: 0, y: 0 } });
+    if (!rig) body.setInteractive({ useHandCursor: true });
+    body.on('pointerup', () => this.onFighterTap(f));
+    this.views.set(f.id, { c, body, sprite, rig, ring, bars, fx, home: { x: 0, y: 0 } });
   }
 
   /** Heroes stand on their formation cell; enemies stagger on the right. */
@@ -671,22 +713,3 @@ export class BattleScene extends Phaser.Scene {
 
 const radius = (f: Fighter) => (f.isBoss ? 27 : 21);
 
-function setButtonLabel(btn: Button, label: string) {
-  btn.container.list.forEach((o) => o instanceof Phaser.GameObjects.Text && o.setText(label));
-}
-
-function readPrefs(): { auto: boolean; fast: boolean } {
-  try {
-    return { auto: true, fast: false, ...JSON.parse(localStorage.getItem(PREFS_KEY) ?? '{}') };
-  } catch {
-    return { auto: true, fast: false };
-  }
-}
-
-function writePrefs(p: { auto: boolean; fast: boolean }) {
-  try {
-    localStorage.setItem(PREFS_KEY, JSON.stringify(p));
-  } catch {
-    // preferences just won't persist
-  }
-}
