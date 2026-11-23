@@ -1,3 +1,4 @@
+import type { Gear, ItemId, Troops } from './army';
 import { DEFAULT_POSITIONS, type Positions } from './formation';
 import type { Fighter } from './types';
 
@@ -18,6 +19,16 @@ export interface CampaignSave {
   formation?: string[];
   /** 2D formation grid (general id → cell). Takes precedence over `formation`. */
   positions?: Positions;
+  /** soldiers owned (battle loot) */
+  army?: Troops;
+  /** soldiers assigned to each general */
+  assign?: Record<string, Troops>;
+  /** re-split soldiers automatically when new ones arrive (turned off by assigning by hand) */
+  autoArmy?: boolean;
+  /** each general's weapon and armour upgrades */
+  gear?: Record<string, Gear>;
+  /** refining tools owned */
+  items?: Partial<Record<ItemId, number>>;
 }
 
 const KEY = 'peach-garden.save.v1';

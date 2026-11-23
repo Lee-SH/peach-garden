@@ -1,6 +1,7 @@
 import { battleXp, beginTurn, breather, chooseAction, endTurn, gainXp, nextActor, outcome, seededRng, startWave, useSkill } from './combat';
 import { applyBattleResult, newCampaign, type CampaignSave } from './save';
-import { buildParty, buildWave, SCENARIOS, SCENARIO_ORDER, type Scenario } from '../data/scenarios';
+import { buildParty, buildWave, scenarioLoot, SCENARIOS, SCENARIO_ORDER, type Scenario } from '../data/scenarios';
+import { autoRefine, grantLoot } from './campaign';
 import type { Battle } from './types';
 import { fromOrder, type Positions } from './formation';
 
@@ -49,7 +50,7 @@ export interface CampaignRun {
 }
 
 /** Play the whole campaign on auto with a fixed formation, retrying lost battles. */
-export function autoCampaign(formation: string[] | Positions, seed: number, maxAttempts = 5): CampaignRun {
+export function autoCampaign(formation: string[] | Positions, seed: number, maxAttempts = 5, rewards = true): CampaignRun {
   const positions = Array.isArray(formation) ? fromOrder(formation) : formation;
   let save: CampaignSave = { ...newCampaign(), positions };
   const log: CampaignRun['log'] = [];
@@ -69,6 +70,11 @@ export function autoCampaign(formation: string[] | Positions, seed: number, maxA
     }
     for (const f of run.party) if (!f.dead) gainXp(f, battleXp(f));
     save = applyBattleResult(save, run.party, sc.next);
+    if (rewards) {
+      // loot is split automatically and every affordable upgrade is bought (a casual player)
+      save = grantLoot(save, scenarioLoot(sc));
+      save = autoRefine(save, run.party.map((f) => f.id));
+    }
     log.push({
       id,
       attempts,

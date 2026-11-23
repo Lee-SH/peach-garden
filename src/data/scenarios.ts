@@ -1,6 +1,8 @@
 import type { Fighter } from '../core/types';
 import type { CampaignSave } from '../core/save';
 import { DEFAULT_POSITIONS, fromOrder, normalizePositions, type Positions } from '../core/formation';
+import { applyGear, applyTroops, lootFor, type Loot } from '../core/army';
+import { assignedTo, gearOf } from '../core/campaign';
 import { ENEMIES, GENERALS, makeFighter } from './units';
 
 export interface Line {
@@ -208,7 +210,21 @@ export function buildParty(sc: Scenario, save: CampaignSave): Fighter[] {
   const pos = partyPositions(sc, save);
   return aliveParty(sc, save)
     .sort((a, b) => pos[a].col - pos[b].col || pos[a].row - pos[b].row)
-    .map((id) => makeFighter(id, GENERALS[id], 'player', save.roster[id], pos[id].col, pos[id].row));
+    .map((id) => {
+      const f = makeFighter(id, GENERALS[id], 'player', save.roster[id], pos[id].col, pos[id].row);
+      applyGear(f, gearOf(save, id));
+      applyTroops(f, assignedTo(save, id));
+      return f;
+    });
+}
+
+/** Battle number within the chapter (1-based). */
+export const stageOf = (sc: Scenario) => SCENARIO_ORDER.indexOf(sc.id) + 1;
+
+/** What winning this battle gives: soldiers, tools, 백련강 per officer, the manual at chapter end. */
+export function scenarioLoot(sc: Scenario): Loot {
+  const officers = sc.waves.flatMap((w) => w.enemies).filter((e) => ENEMIES[e].isBoss).length;
+  return lootFor(stageOf(sc), officers, sc.next === null);
 }
 
 export function buildWave(sc: Scenario, index: number): Fighter[] {

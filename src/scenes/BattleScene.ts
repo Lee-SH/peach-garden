@@ -15,8 +15,10 @@ import {
   useSkill,
 } from '../core/combat';
 import { applyBattleResult, loadSave, newCampaign, writeSave, type CampaignSave } from '../core/save';
+import { grantLoot } from '../core/campaign';
+import { ITEM_ORDER, ITEMS } from '../data/items';
 import type { Battle, CombatEvent, EffectType, Fighter, Skill } from '../core/types';
-import { buildParty, buildWave, SCENARIO_ORDER, SCENARIOS, type Scenario } from '../data/scenarios';
+import { buildParty, buildWave, scenarioLoot, SCENARIO_ORDER, SCENARIOS, stageOf, type Scenario } from '../data/scenarios';
 import { GENERALS } from '../data/units';
 import { button, type Button, COLOR, FONT, H, hd, RES, setButtonLabel, text, W } from '../ui/theme';
 import type { ResultData } from './ResultScene';
@@ -41,6 +43,8 @@ interface View {
   rig?: Rig;
   /** dust puffs while a rig runs */
   dust?: Phaser.Time.TimerEvent;
+  /** soldiers left (generals with troops) */
+  troopText?: Phaser.GameObjects.Text;
   /** frame art (generals without a rig, enemies with a drawn look) */
   sprite?: Phaser.GameObjects.Sprite;
   /** which art folder the sprite uses (enemy looks vary per fighter) */
@@ -522,6 +526,12 @@ export class BattleScene extends Phaser.Scene {
           break;
         case 'effect':
           break; // shown persistently above the token
+        case 'troops':
+          if (v.troopText) {
+            v.troopText.setColor('#ff8a7a');
+            this.time.delayedCall(400, () => v.troopText?.setColor('#d8c8a0'));
+          }
+          break;
         case 'stunned':
           this.floatAt(v.c.x, v.c.y - 20, '기절!', '#e0d0ff', 15);
           break;
@@ -565,6 +575,11 @@ export class BattleScene extends Phaser.Scene {
         lines.push(`${f.name} (${SLOT_NAMES[f.slot]})  경험치 +${xp}${levels.length ? `  Lv ${before} → ${f.level}` : ''}`);
       }
       if (this.fallen.length) lines.push('', `전사: ${this.fallen.join(', ')}`);
+      const loot = scenarioLoot(this.sc);
+      lines.push('', '— 전리품 —');
+      if (stageOf(this.sc) === 1) lines.push('중산의 상인 장세평·소쌍이 말과 철을 바쳤다.');
+      lines.push(`보병 +${loot.troops.inf}${loot.troops.cav ? ` · 기병 +${loot.troops.cav}` : ''}`);
+      lines.push(ITEM_ORDER.filter((k) => loot.items[k]).map((k) => `${ITEMS[k].name} ×${loot.items[k]}`).join(' · '));
     } else {
       lines.push(party.some((f) => f.isLord && f.dead) ? '유비가 쓰러졌다…' : '모든 장수가 쓰러졌다…');
       lines.push('', '진형을 바꿔 다시 도전하자.', '(패배한 전투의 경험치와 전사는 기록되지 않는다)');
@@ -573,7 +588,7 @@ export class BattleScene extends Phaser.Scene {
     this.time.delayedCall(900, () => {
       if (victory) {
         // Permanent: levels and deaths are written to the campaign save
-        writeSave(applyBattleResult(this.save, party, this.sc.next));
+        writeSave(grantLoot(applyBattleResult(this.save, party, this.sc.next), scenarioLoot(this.sc)));
         this.scene.start('Story', { lines: this.sc.outro, next: { key: 'Result', data: result } });
       } else {
         this.scene.start('Result', result);
@@ -638,10 +653,15 @@ export class BattleScene extends Phaser.Scene {
       body = circle;
       parts = [shadow, ring, circle, tok, bars, fx];
     }
+    let troopText: Phaser.GameObjects.Text | undefined;
+    if (f.troops && f.troops.inf0 + f.troops.cav0 > 0) {
+      troopText = text(this, 0, r + 25, '', 10, '#d8c8a0').setOrigin(0.5, 0).setStroke('#000000', 3);
+      parts.push(troopText);
+    }
     const c = this.add.container(0, 0, parts).setDepth(10);
     if (!rig) body.setInteractive({ useHandCursor: true });
     body.on('pointerup', () => this.onFighterTap(f));
-    this.views.set(f.id, { c, body, sprite, artId, rig, ring, bars, fx, home: { x: 0, y: 0 } });
+    this.views.set(f.id, { c, body, sprite, artId, rig, ring, bars, fx, troopText, home: { x: 0, y: 0 } });
   }
 
   /** Heroes stand on their formation cell; enemies stagger on the right. */
@@ -675,6 +695,7 @@ export class BattleScene extends Phaser.Scene {
         v.bars.fillStyle(f.morale >= 100 ? 0xffd23b : 0xd9a441, 1).fillRect(-w / 2, r + 14, (w * f.morale) / 100, 3);
       }
       v.fx.setText(f.effects.map((e) => EFFECT_LABEL[e.type]).join(' '));
+      if (v.troopText && f.troops) v.troopText.setText(`병 ${f.troops.inf + f.troops.cav}`);
       v.ring.setVisible(f === actor);
       const s = this.selectedSkill;
       const targetable = !!this.pending && !!s && f.side === 'enemy' && (s.target === 'enemy' || s.target === 'allEnemies');

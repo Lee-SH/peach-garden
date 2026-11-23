@@ -1,3 +1,4 @@
+import { loseTroops, troopAtkMult, troopDefMult } from './army';
 import type { Battle, CombatEvent, EffectType, Fighter, Outcome, Side, Skill } from './types';
 
 export const CRIT_CHANCE = 0.15;
@@ -131,8 +132,9 @@ export const DEF_WEIGHT = 1.5;
 /** Damage before crit: attack × power × 100 / (100 + def × DEF_WEIGHT). */
 export function baseDamage(attacker: Fighter, target: Fighter, power: number) {
   const slotMult = attacker.side === 'player' ? SLOT_DAMAGE[attacker.slot] ?? 1 : 1;
-  const atk = attacker.atk * slotMult * (hasEffect(attacker, 'atkUp') ? 1.3 : 1);
-  const def = target.def * (hasEffect(target, 'defDown') ? 0.5 : 1);
+  // cavalry sharpens the attack and infantry shields the general, while they last
+  const atk = attacker.atk * troopAtkMult(attacker) * slotMult * (hasEffect(attacker, 'atkUp') ? 1.3 : 1);
+  const def = target.def * troopDefMult(target) * (hasEffect(target, 'defDown') ? 0.5 : 1);
   const taken = target.side === 'player' ? SLOT_TAKEN[target.slot] ?? 1 : 1;
   return Math.max(1, Math.round((atk * power * 100 * taken) / (100 + def * DEF_WEIGHT)));
 }
@@ -184,8 +186,14 @@ export function useSkill(b: Battle, actor: Fighter, skill: Skill, targetId?: str
 function dealDamage(t: Fighter, amount: number, source: Fighter | null, events: CombatEvent[]) {
   if (t.dead) return;
   t.hp = Math.max(0, t.hp - amount);
-  if (t.hp > 0) return;
+  if (t.hp > 0) {
+    const lost = loseTroops(t, amount);
+    if (lost) events.push({ type: 'troops', id: t.id, lost });
+    return;
+  }
   t.dead = true;
+  const lost = loseTroops(t, amount);
+  if (lost) events.push({ type: 'troops', id: t.id, lost });
   t.effects = [];
   events.push({ type: 'death', id: t.id });
   if (source && source.side !== t.side) source.stats.kills += t.isBoss ? XP_PER_BOSS_KILL / XP_PER_KILL : 1;

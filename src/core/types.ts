@@ -63,6 +63,8 @@ export interface Fighter {
   row: number;
   /** counters for end-of-battle XP */
   stats: { dealt: number; taken: number; kills: number };
+  /** soldiers led (generals only): current and at battle start; see core/army.ts */
+  troops?: { inf: number; cav: number; inf0: number; cav0: number };
 }
 
 export interface Battle {
@@ -78,4 +80,5 @@ export type CombatEvent =
   | { type: 'effect'; id: string; effect: EffectType }
   | { type: 'burn'; id: string; amount: number }
   | { type: 'stunned'; id: string }
+  | { type: 'troops'; id: string; lost: number }
   | { type: 'death'; id: string };

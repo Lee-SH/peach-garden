@@ -67,7 +67,11 @@ export class FormationScene extends Phaser.Scene {
     const fallen = this.sc.party.filter((id) => !this.ids.includes(id)).map((id) => GENERALS[id].name);
     if (fallen.length) text(this, W - 12, 12, `전사: ${fallen.join(', ')}`, 12, COLOR.red).setOrigin(1, 0);
 
-    button(this, W / 2, H - 30, 200, 42, '출진!', () => this.depart());
+    button(this, 70, H - 30, 116, 42, '군영', () => {
+      writeSave({ ...this.save, positions: this.pos });
+      this.scene.start('Camp', { back: { key: 'Formation', data: { scenarioId: this.sc.id } }, select: this.selected });
+    });
+    button(this, W - 112, H - 30, 196, 42, '출진!', () => this.depart());
     this.refresh();
   }
 

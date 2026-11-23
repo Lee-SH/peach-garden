@@ -18,17 +18,18 @@ export class ResultScene extends Phaser.Scene {
 
   create(data: ResultData) {
     hd(this);
-    text(this, W / 2, 120, data.victory ? '승리' : '패배', 48, data.victory ? COLOR.gold : COLOR.red).setOrigin(0.5);
-    text(this, W / 2, 190, data.lines.join('\n'), 14).setOrigin(0.5, 0).setAlign('center').setWordWrapWidth(W - 32, true);
+    text(this, W / 2, 110, data.victory ? '승리' : '패배', 44, data.victory ? COLOR.gold : COLOR.red).setOrigin(0.5);
+    text(this, W / 2, 176, data.lines.join('\n'), 13).setOrigin(0.5, 0).setAlign('center').setWordWrapWidth(W - 32, true);
 
     if (data.victory) {
+      button(this, W / 2, 456, 220, 40, '군영 (병력·재련)', () => this.scene.start('Camp', { back: { key: 'Result', data } }));
       if (data.next) {
         button(this, W / 2, 520, 220, 48, '다음 전투로', () => {
           const save = loadSave();
           if (save) startScenario(this, save);
         });
       } else {
-        text(this, W / 2, 440, '1장 완결!\n2장 「반동탁 연합」은 준비 중입니다.', 14, COLOR.gold).setOrigin(0.5).setAlign('center');
+        text(this, W / 2, 516, '1장 완결!\n2장 「반동탁 연합」은 준비 중입니다.', 14, COLOR.gold).setOrigin(0.5).setAlign('center');
       }
     } else {
       button(this, W / 2, 500, 220, 48, '진형 바꿔 다시 하기', () =>

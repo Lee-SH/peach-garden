@@ -140,8 +140,8 @@ export const ENEMIES: Record<string, FighterTemplate> = {
 
 /** Enemy stat scaling per level above 1 (percentage of base). */
 const ENEMY_SCALE = { hp: 0.09, atk: 0.065, def: 0.05 };
-/** Global enemy attack multiplier — the main difficulty knob (tuned with tests/balance.test.ts). */
-export const ENEMY_POWER = 1.2;
+/** Global enemy attack multiplier — the main difficulty knob (tuned with tests/balance.test.ts; raised 1.2 → 1.55 when troops and refining were added). */
+export const ENEMY_POWER = 1.55;
 
 export function makeFighter(
   id: string,
