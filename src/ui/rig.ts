@@ -101,6 +101,10 @@ export class Rig {
     return this.hold(this.style.raise, 180);
   }
 
+  roar() {
+    return this.hold(this.style.roar, 120);
+  }
+
   /** Wind up and strike; resolves at the moment of impact (the pose is then held). */
   async attack(move: string) {
     const m = this.style.moves[move] ?? this.style.moves.atk1;

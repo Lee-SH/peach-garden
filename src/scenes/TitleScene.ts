@@ -39,7 +39,7 @@ export class TitleScene extends Phaser.Scene {
       setButtonLabel(anim, animLabel());
     });
 
-    text(this, W / 2, H - 30, 'v0.8.4 · 1장 황건적의 난 (6화)', 12, COLOR.dim).setOrigin(0.5);
+    text(this, W / 2, H - 30, 'v0.8.5 · 1장 황건적의 난 (6화)', 12, COLOR.dim).setOrigin(0.5);
   }
 
   private drawPetals() {

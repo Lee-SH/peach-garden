@@ -28,6 +28,7 @@ import { hasRig, Rig } from '../ui/rig';
 import { addSprite, artKey, ATTACK_POSES, CHAR_SCALE, hasArt, hasPose, playRun, setPose, SPRITE_H, type Pose } from '../data/art';
 import { enemyHeight, pickEnemyArt } from '../data/enemyArt';
 import { briefingLine } from '../data/briefing';
+import { isShout, playFx, SKILL_FX } from '../ui/fx';
 
 
 const EFFECT_LABEL: Record<EffectType, string> = { atkUp: '공↑', defDown: '방↓', stun: '기절', burn: '화상' };
@@ -417,11 +418,27 @@ export class BattleScene extends Phaser.Scene {
       this.showEvents(events);
       this.refresh(null);
       await this.tweenAsync({ targets: v.c, x: v.home.x, y: v.home.y, duration: 190, ease: 'Quad.easeOut' });
+    } else if (s.power > 0) {
+      // Area attack from where the fighter stands: a pose, then an effect that travels to the targets
+      const kind = SKILL_FX[s.id] ?? 'slashes';
+      if (isShout(kind)) {
+        if (v.rig) await v.rig.roar();
+        else this.setPose(v, actor.id, pose);
+      } else if (v.rig) await v.rig.attack(pose);
+      else {
+        this.setPose(v, actor.id, pose);
+        await this.tweenAsync({ targets: v.c, x: v.home.x + dir * 16, duration: 110, yoyo: true });
+      }
+      const hit = [...new Set(events.filter((e) => e.type === 'damage').map((e) => e.id))];
+      const targets = hit.map((id) => this.views.get(id)).filter((t): t is View => !!t).map((t) => ({ x: t.c.x, y: t.c.y }));
+      const h = actor.side === 'player' ? SPRITE_H : 50;
+      const mouth = { x: v.c.x + dir * 10, y: v.c.y + radius(actor) + 4 - h * 0.78 };
+      await playFx(this, kind, mouth, targets, dir as 1 | -1);
+      this.showEvents(events);
+      this.refresh(null);
+      await this.wait(kind === 'shout' ? 380 : 220);
     } else {
-      if (s.power > 0 && v.rig) await v.rig.attack(pose);
-      else if (s.power > 0) this.setPose(v, actor.id, pose);
       await this.tweenAsync({ targets: v.c, x: v.home.x + dir * 24, duration: 110, yoyo: true });
-      if (s.power > 0) this.cameras.main.shake(140, 0.006);
       this.showEvents(events);
       this.refresh(null);
       await this.wait(220);

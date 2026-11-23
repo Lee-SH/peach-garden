@@ -344,6 +344,11 @@ const P_MOVES: Record<string, Move> = {
 
 const P_RAISE: Pose = aim({ ...P_REST, aF1: 170, aF2: -5, aB1: -10, aB2: -40, head: 6, torso: -3 }, 0);
 
+/** Roar (shouts like 대갈일성): chest out, head thrown back, arms flung wide, feet planted. */
+const ROAR_BODY: Pose = { torso: -14, head: -20, lF1: -22, lB1: 22, lF2: 8, lB2: 8, bodyY: -6 };
+const T_ROAR: Pose = { ...REST, ...ROAR_BODY, aF1: -55, aF2: -35, aB1: 60, aB2: -25 };
+const P_ROAR: Pose = aim({ ...P_REST, ...ROAR_BODY, aF1: -35, aF2: -60, aB1: 65, aB2: -20 }, 15);
+
 // ---------------------------------------------------------------------------
 
 export interface Style {
@@ -352,10 +357,11 @@ export interface Style {
   run: (p: number) => Pose;
   moves: Record<string, Move>;
   raise: Pose;
+  roar: Pose;
   flinch: Pose;
 }
 
 export const STYLES: Record<WeaponStyle, Style> = {
-  twin: { rest: REST, idle: idlePose, run: runPose, moves: MOVES, raise: RAISE, flinch: FLINCH },
-  polearm: { rest: P_REST, idle: polearmIdle, run: polearmRun, moves: P_MOVES, raise: P_RAISE, flinch: FLINCH },
+  twin: { rest: REST, idle: idlePose, run: runPose, moves: MOVES, raise: RAISE, roar: T_ROAR, flinch: FLINCH },
+  polearm: { rest: P_REST, idle: polearmIdle, run: polearmRun, moves: P_MOVES, raise: P_RAISE, roar: P_ROAR, flinch: FLINCH },
 };
