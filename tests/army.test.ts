@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { applyTroops, autoAssign, lootFor, loseTroops, troopCap, upgrade, upgradeCost, NO_GEAR } from '../src/core/army';
-import { assignedTo, grantLoot, refine, setAssign, unassigned } from '../src/core/campaign';
+import { assignedTo, gearOf, grantLoot, grantLootDetail, refine, setAssign, unassigned, unrefine } from '../src/core/campaign';
 import { baseDamage, useSkill } from '../src/core/combat';
 import { newCampaign } from '../src/core/save';
 import { buildParty, scenarioLoot, SCENARIOS } from '../src/data/scenarios';
@@ -59,7 +59,6 @@ describe('troops', () => {
     s = setAssign(s, 'liubei', { inf: 0, cav: 0 });
     s = setAssign(s, 'guanyu', { inf: 9999, cav: 0 });
     expect(assignedTo(s, 'guanyu').inf).toBe(troopCap(1));
-    expect(s.autoArmy).toBe(false);
     expect(unassigned(s).inf).toBeGreaterThan(0);
   });
 });
@@ -88,6 +87,42 @@ describe('refining', () => {
     expect(after.atk).toBeGreaterThan(before.atk);
     expect(after.def).toBeGreaterThan(before.def);
     expect(after.maxHp).toBeGreaterThan(before.maxHp);
+  });
+});
+
+describe('undo and new soldiers', () => {
+  it('undoing a refining step gives every tool back', () => {
+    let s = grantLoot(newCampaign(), { troops: { inf: 0, cav: 0 }, items: { lacquer: 3 } });
+    s = refine(s, 'liubei', 'lacquer')!;
+    s = refine(s, 'liubei', 'lacquer')!;
+    expect(s.items!.lacquer).toBe(0);
+    s = unrefine(s, 'liubei', 'lacquer')!;
+    expect(gearOf(s, 'liubei').lacquer).toBe(1);
+    expect(s.items!.lacquer).toBe(2);
+    s = unrefine(s, 'liubei', 'lacquer')!;
+    expect(s.items!.lacquer).toBe(3);
+    expect(unrefine(s, 'liubei', 'lacquer')).toBeNull();
+  });
+
+  it('sharpening cannot be undone below what the weapon grade needs', () => {
+    let s = grantLoot(newCampaign(), { troops: { inf: 0, cav: 0 }, items: { whetstone: 99, steel: 1 } });
+    for (let i = 0; i < 4; i++) s = refine(s, 'guanyu', 'edge')!;
+    s = refine(s, 'guanyu', 'grade')!;
+    expect(unrefine(s, 'guanyu', 'edge')).toBeNull();
+    s = unrefine(s, 'guanyu', 'grade')!;
+    expect(s.items!.steel).toBe(1);
+    expect(unrefine(s, 'guanyu', 'edge')).not.toBeNull();
+  });
+
+  it('new soldiers fill free room and never undo hand-made choices', () => {
+    let s = grantLoot(newCampaign(), { troops: { inf: 60, cav: 0 }, items: {} });
+    s = setAssign(s, 'liubei', { inf: 0, cav: 0 });
+    const kept = assignedTo(s, 'guanyu');
+    const r = grantLootDetail(s, { troops: { inf: 0, cav: 30 }, items: {} });
+    expect(assignedTo(r.save, 'guanyu').inf).toBe(kept.inf);
+    const got = Object.values(r.given).reduce((a, t) => a + t.inf + t.cav, 0);
+    expect(got).toBe(30 + unassigned(s).inf); // the new cavalry plus whatever sat in the camp
+    expect(unassigned(r.save)).toEqual({ inf: 0, cav: 0 });
   });
 });
 

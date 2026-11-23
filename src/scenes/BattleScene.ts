@@ -15,8 +15,7 @@ import {
   useSkill,
 } from '../core/combat';
 import { applyBattleResult, loadSave, newCampaign, writeSave, type CampaignSave } from '../core/save';
-import { grantLoot } from '../core/campaign';
-import { ITEM_ORDER, ITEMS } from '../data/items';
+import { grantLootDetail } from '../core/campaign';
 import type { Battle, CombatEvent, EffectType, Fighter, Skill } from '../core/types';
 import { buildParty, buildWave, scenarioLoot, SCENARIO_ORDER, SCENARIOS, stageOf, type Scenario } from '../data/scenarios';
 import { GENERALS } from '../data/units';
@@ -575,20 +574,26 @@ export class BattleScene extends Phaser.Scene {
         lines.push(`${f.name} (${SLOT_NAMES[f.slot]})  경험치 +${xp}${levels.length ? `  Lv ${before} → ${f.level}` : ''}`);
       }
       if (this.fallen.length) lines.push('', `전사: ${this.fallen.join(', ')}`);
-      const loot = scenarioLoot(this.sc);
-      lines.push('', '— 전리품 —');
-      if (stageOf(this.sc) === 1) lines.push('중산의 상인 장세평·소쌍이 말과 철을 바쳤다.');
-      lines.push(`보병 +${loot.troops.inf}${loot.troops.cav ? ` · 기병 +${loot.troops.cav}` : ''}`);
-      lines.push(ITEM_ORDER.filter((k) => loot.items[k]).map((k) => `${ITEMS[k].name} ×${loot.items[k]}`).join(' · '));
     } else {
       lines.push(party.some((f) => f.isLord && f.dead) ? '유비가 쓰러졌다…' : '모든 장수가 쓰러졌다…');
       lines.push('', '진형을 바꿔 다시 도전하자.', '(패배한 전투의 경험치와 전사는 기록되지 않는다)');
     }
     const result: ResultData = { victory, scenarioId: this.sc.id, lines, next: this.sc.next };
+    // Permanent: levels and deaths are written to the campaign save, then the loot is handed out
+    let saved: CampaignSave | null = null;
+    if (victory) {
+      const loot = scenarioLoot(this.sc);
+      const r = grantLootDetail(applyBattleResult(this.save, party, this.sc.next), loot);
+      saved = r.save;
+      result.loot = {
+        ...loot,
+        given: r.given,
+        note: stageOf(this.sc) === 1 ? '중산의 상인 장세평·소쌍이 말과 철을 바쳤다.' : undefined,
+      };
+    }
     this.time.delayedCall(900, () => {
-      if (victory) {
-        // Permanent: levels and deaths are written to the campaign save
-        writeSave(grantLoot(applyBattleResult(this.save, party, this.sc.next), scenarioLoot(this.sc)));
+      if (saved) {
+        writeSave(saved);
         this.scene.start('Story', { lines: this.sc.outro, next: { key: 'Result', data: result } });
       } else {
         this.scene.start('Result', result);

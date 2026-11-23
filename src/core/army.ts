@@ -145,6 +145,30 @@ export function upgrade(g: Gear, items: Partial<Record<ItemId, number>>, u: Upgr
   return { gear: { ...g, [u]: g[u] + 1 }, items: { ...items, [cost.item]: (items[cost.item] ?? 0) - cost.count } };
 }
 
+/** What undoing the last step of an upgrade gives back (the full cost of that step), or why it can't. */
+export function undoRefund(g: Gear, u: Upgrade): { item: ItemId; count: number } | { blocked: string } {
+  switch (u) {
+    case 'edge':
+      if (g.edge <= 0) return { blocked: '없음' };
+      if (g.grade > 0 && g.edge - 1 < GRADE_NEEDS_EDGE[g.grade - 1]) return { blocked: `${GRADE_NAMES[g.grade]} 등급 유지` };
+      return { item: 'whetstone', count: g.edge };
+    case 'lacquer':
+      return g.lacquer <= 0 ? { blocked: '없음' } : { item: 'lacquer', count: g.lacquer };
+    case 'lacing':
+      return g.lacing <= 0 ? { blocked: '없음' } : { item: 'rawhide', count: g.lacing };
+    case 'grade':
+      if (g.grade <= 0) return { blocked: '없음' };
+      return g.grade === GRADE_NAMES.length - 1 ? { item: 'manual', count: 1 } : { item: 'steel', count: g.grade };
+  }
+}
+
+/** Undo the last step of an upgrade, refunding its tools in full. Pure; null when there's nothing to undo. */
+export function downgrade(g: Gear, items: Partial<Record<ItemId, number>>, u: Upgrade): { gear: Gear; items: Partial<Record<ItemId, number>> } | null {
+  const r = undoRefund(g, u);
+  if ('blocked' in r) return null;
+  return { gear: { ...g, [u]: g[u] - 1 }, items: { ...items, [r.item]: (items[r.item] ?? 0) + r.count } };
+}
+
 // ---------------------------------------------------------------------------
 // Loot
 // ---------------------------------------------------------------------------

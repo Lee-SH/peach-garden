@@ -1,7 +1,7 @@
 /**
  * Campaign-level bookkeeping for troops and refining (pure functions on CampaignSave).
  */
-import { addItems, autoAssign, NO_GEAR, troopCap, upgrade, type Gear, type Loot, type Troops, type Upgrade } from './army';
+import { addItems, autoAssign, downgrade, NO_GEAR, troopCap, upgrade, type Gear, type Loot, type Troops, type Upgrade } from './army';
 import type { CampaignSave } from './save';
 
 export const gearOf = (save: CampaignSave, id: string): Gear => ({ ...NO_GEAR, ...save.gear?.[id] });
@@ -37,36 +37,60 @@ export function unassigned(save: CampaignSave): Troops {
   return { inf: Math.max(0, inf), cav: Math.max(0, cav) };
 }
 
-/** Re-split all soldiers by command caps. */
-export function reassign(save: CampaignSave): CampaignSave {
-  return { ...save, assign: autoAssign(armyOf(save), partyCaps(save)) };
+/**
+ * Hand soldiers sitting in the camp to generals who still have room (in proportion to that room).
+ * Existing assignments are never touched. Returns who got how many.
+ */
+export function distributeFree(save: CampaignSave): { save: CampaignSave; given: Record<string, Troops> } {
+  const room = Object.fromEntries(
+    livingIds(save).map((id) => {
+      const a = assignedTo(save, id);
+      return [id, troopCap(save.roster[id].level) - a.inf - a.cav];
+    }),
+  );
+  const given = autoAssign(unassigned(save), room);
+  const assign: Record<string, Troops> = {};
+  for (const id of livingIds(save)) {
+    const a = assignedTo(save, id);
+    assign[id] = { inf: a.inf + given[id].inf, cav: a.cav + given[id].cav };
+  }
+  return { save: { ...save, assign }, given };
 }
 
-/** Add battle loot (and re-split soldiers if the player leaves that to the game). */
+/** Add battle loot: tools go to the camp, new soldiers join the generals who have room. */
 export function grantLoot(save: CampaignSave, loot: Loot): CampaignSave {
+  return grantLootDetail(save, loot).save;
+}
+
+export function grantLootDetail(save: CampaignSave, loot: Loot): { save: CampaignSave; given: Record<string, Troops> } {
   const army = armyOf(save);
-  let next: CampaignSave = {
+  return distributeFree({
     ...save,
     army: { inf: army.inf + loot.troops.inf, cav: army.cav + loot.troops.cav },
     items: addItems(save.items ?? {}, loot.items),
-  };
-  if (next.autoArmy !== false) next = reassign(next);
-  return next;
+  });
 }
 
-/** Change one general's soldiers by hand (clamped to their cap and to what's free). Turns auto-split off. */
+/** Change one general's soldiers by hand (clamped to their cap and to what's in the camp). */
 export function setAssign(save: CampaignSave, id: string, want: Troops): CampaignSave {
   const cap = troopCap(save.roster[id]?.level ?? 1);
   const cur = assignedTo(save, id);
   const free = unassigned(save);
   const inf = Math.max(0, Math.min(want.inf, cur.inf + free.inf, cap));
   const cav = Math.max(0, Math.min(want.cav, cur.cav + free.cav, cap - inf));
-  return { ...save, autoArmy: false, assign: { ...save.assign, [id]: { inf, cav } } };
+  return { ...save, assign: { ...save.assign, [id]: { inf, cav } } };
 }
 
 /** Apply one refining step to a general's gear; null if it can't be done. */
 export function refine(save: CampaignSave, id: string, u: Upgrade): CampaignSave | null {
   const r = upgrade(gearOf(save, id), save.items ?? {}, u);
+  if (!r) return null;
+  return { ...save, gear: { ...save.gear, [id]: r.gear }, items: r.items };
+}
+
+/** Undo one refining step, getting its tools back; null if there's nothing to undo. */
+export function unrefine(save: CampaignSave, id: string, u: Upgrade): CampaignSave | null {
+  const r = downgrade(gearOf(save, id), save.items ?? {}, u);
   if (!r) return null;
   return { ...save, gear: { ...save.gear, [id]: r.gear }, items: r.items };
 }

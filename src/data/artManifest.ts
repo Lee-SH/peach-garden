@@ -5,3 +5,6 @@ export const ART_FILES: Record<string, string[]> = {
   "liubei": ['atk1', 'atk2', 'atk3', 'atk4', 'idle', 'portrait', 'r1', 'r2', 'r3', 'r4', 'r6', 'ult'],
   "zhangfei": ['attack', 'idle', 'portrait', 'ult'],
 };
+
+/** Icons that exist under public/art/icons/ (others are drawn as placeholder circles). */
+export const ICON_FILES: string[] = [];

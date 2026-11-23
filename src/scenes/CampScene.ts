@@ -1,11 +1,12 @@
 import Phaser from 'phaser';
-import { applyGear, applyTroops, GRADE_NAMES, troopCap, upgradeCost, type Upgrade } from '../core/army';
-import { armyOf, assignedTo, gearOf, reassign, refine, setAssign, unassigned } from '../core/campaign';
+import { applyGear, applyTroops, CAV_ATK, CAV_SPD, GRADE_NAMES, INF_DEF, INF_HP, MAX_LEVEL, troopCap, undoRefund, upgradeCost, type ItemId, type Troops, type Upgrade } from '../core/army';
+import { assignedTo, gearOf, refine, setAssign, unassigned, unrefine } from '../core/campaign';
 import { loadSave, newCampaign, writeSave, type CampaignSave } from '../core/save';
 import { artKey, hasArt, hasPose } from '../data/art';
 import { ITEM_ORDER, ITEMS, UPGRADE_LABEL } from '../data/items';
 import { GENERALS, makeFighter } from '../data/units';
-import { button, COLOR, hd, text, W, H } from '../ui/theme';
+import { icon, type IconKey } from '../ui/icons';
+import { button, COLOR, FONT, hd, RES, text, W } from '../ui/theme';
 
 export interface CampData {
   /** where "돌아가기" leads */
@@ -13,14 +14,27 @@ export interface CampData {
   select?: string;
 }
 
+/** Which tool each refining track uses, and what one step does. */
+const TRACK: { u: Upgrade; item: (grade: number) => ItemId; effect: (lv: number) => string }[] = [
+  { u: 'edge', item: () => 'whetstone', effect: (lv) => `공격 +${lv * 3}%` },
+  { u: 'grade', item: (g) => (g === GRADE_NAMES.length - 2 ? 'manual' : 'steel'), effect: (lv) => `${GRADE_NAMES[lv]} · 공격 +${lv * 8}%` },
+  { u: 'lacquer', item: () => 'lacquer', effect: (lv) => `방어 +${lv * 4}%` },
+  { u: 'lacing', item: () => 'rawhide', effect: (lv) => `체력 +${lv * 3}%` },
+];
+
+/** percent with one decimal while small (+1.5%), whole numbers after that */
+const pct = (v: number) => `${v < 10 ? Math.round(v * 10) / 10 : Math.round(v)}%`;
+
 /**
- * 군영: hand soldiers to generals and refine their weapons and armour with old-style tools.
- * Every change is saved immediately.
+ * 군영: the camp's storehouse (loot nobody has yet), the three generals with what they carry, and the
+ * selected general's soldiers and gear. Everything is shown as icons (placeholder circles until art
+ * exists), every change is saved at once, and every refining step can be undone for a full refund.
  */
 export class CampScene extends Phaser.Scene {
   private save!: CampaignSave;
   private back!: CampData['back'];
   private sel = '';
+  private info = '아이콘을 누르면 설명이 나와요.';
   private layer!: Phaser.GameObjects.Container;
 
   constructor() {
@@ -31,10 +45,14 @@ export class CampScene extends Phaser.Scene {
     hd(this);
     this.save = loadSave() ?? newCampaign();
     this.back = data.back;
-    const alive = Object.keys(GENERALS).filter((id) => this.save.roster[id]?.alive);
+    const alive = this.alive();
     this.sel = data.select && alive.includes(data.select) ? data.select : alive[0];
     this.layer = this.add.container(0, 0);
     this.render();
+  }
+
+  private alive() {
+    return Object.keys(GENERALS).filter((id) => this.save.roster[id]?.alive);
   }
 
   private commit(next: CampaignSave | null) {
@@ -50,97 +68,147 @@ export class CampScene extends Phaser.Scene {
       this.layer.add(o);
       return o;
     };
-    const btn = (x: number, y: number, w: number, h: number, label: string, on: () => void, enabled = true) => {
+    const btn = (x: number, y: number, w: number, h: number, label: string, on: () => void, enabled = true, size = 13) => {
       const b = button(this, x, y, w, h, label, on);
+      (b.container.list[1] as Phaser.GameObjects.Text).setFontSize(size);
       b.setEnabled(enabled);
-      if (!enabled) b.container.setAlpha(0.45);
       add(b.container);
       return b;
     };
+    const ico = (k: IconKey, x: number, y: number, size: number, tip?: string) => {
+      const c = add(icon(this, k, x, y, size));
+      if (tip) {
+        c.setSize(size + 8, size + 8).setInteractive({ useHandCursor: true });
+        c.on('pointerup', () => {
+          this.info = tip;
+          this.render();
+        });
+      }
+      return c;
+    };
+    const panel = (y: number, h: number) =>
+      add(this.add.rectangle(W / 2, y, W - 16, h, COLOR.panel).setOrigin(0.5, 0).setStrokeStyle(1, COLOR.panelLine));
+
     const s = this.save;
-    const id = this.sel;
-    const g = GENERALS[id];
-    const lv = s.roster[id].level;
+    const items = s.items ?? {};
 
     add(text(this, 14, 12, '군영', 20, COLOR.gold));
-    add(text(this, 14, 42, '병력을 나눠 주고, 재련 도구로 무기와 갑옷을 강화합니다.', 11, COLOR.dim));
+    btn(W - 52, 26, 84, 30, '돌아가기', () => this.scene.start(this.back.key, this.back.data));
 
-    // general tabs
-    const alive = Object.keys(GENERALS).filter((k) => s.roster[k]?.alive);
-    alive.forEach((k, i) => {
-      const b = btn(62 + i * 118, 82, 110, 34, `${GENERALS[k].name} Lv${s.roster[k].level}`, () => {
-        this.sel = k;
+    // --- storehouse: loot not handed out yet ---------------------------------------------------
+    panel(44, 98);
+    add(text(this, 18, 50, '보급고', 13, COLOR.gold));
+    add(text(this, W - 18, 52, '전리품 중 아직 나눠주지 않은 것', 11, COLOR.dim).setOrigin(1, 0));
+    const free = unassigned(s);
+    const store: { k: IconKey; n: number; tip: string }[] = [
+      { k: 'inf', n: free.inf, tip: `보병: 장수에게 주면 100명당 체력 +${INF_HP * 100}% · 방어 +${INF_DEF * 100}%` },
+      { k: 'cav', n: free.cav, tip: `기병: 장수에게 주면 100명당 공격 +${CAV_ATK * 100}% · 속도 +${CAV_SPD}` },
+      ...ITEM_ORDER.map((k) => ({ k, n: items[k] ?? 0, tip: `${ITEMS[k].name}(${ITEMS[k].hanja}): ${ITEMS[k].desc}` })),
+    ];
+    store.forEach((it, i) => {
+      const x = 36 + i * 48;
+      const c = ico(it.k, x, 86, 30, it.tip);
+      if (!it.n) c.setAlpha(0.3);
+      add(text(this, x, 104, `${it.n}`, 12, it.n ? COLOR.text : COLOR.dim).setOrigin(0.5, 0));
+    });
+    add(text(this, W / 2, 122, this.info, 11, COLOR.dim).setOrigin(0.5, 0).setWordWrapWidth(W - 28, true).setAlign('center'));
+
+    // --- generals: who carries what --------------------------------------------------------------
+    const alive = this.alive();
+    const cw = 108;
+    alive.forEach((id, i) => {
+      const cx = W / 2 + (i - (alive.length - 1) / 2) * (cw + 8);
+      const t = assignedTo(s, id);
+      const cap = troopCap(s.roster[id].level);
+      const card = add(this.add.rectangle(cx, 150, cw, 118, COLOR.panel).setOrigin(0.5, 0));
+      card.setStrokeStyle(id === this.sel ? 3 : 1, id === this.sel ? 0xffd23b : COLOR.panelLine);
+      card.setInteractive({ useHandCursor: true }).on('pointerup', () => {
+        this.sel = id;
         this.render();
       });
-      if (k === id) (b.container.list[0] as Phaser.GameObjects.Rectangle).setStrokeStyle(3, 0xffd23b);
+      this.portrait(add, id, cx, 180, 46);
+      add(text(this, cx, 206, `${GENERALS[id].name} Lv${s.roster[id].level}`, 12).setOrigin(0.5, 0));
+      ico('inf', cx - 38, 234, 16);
+      add(text(this, cx - 28, 234, `${t.inf}`, 12).setOrigin(0, 0.5));
+      ico('cav', cx + 10, 234, 16);
+      add(text(this, cx + 20, 234, `${t.cav}`, 12).setOrigin(0, 0.5));
+      // command bar
+      const bw = cw - 20;
+      const fill = Math.min(1, (t.inf + t.cav) / cap);
+      add(this.add.rectangle(cx - bw / 2, 254, bw, 5, 0x000000, 0.5).setOrigin(0, 0.5));
+      if (fill) add(this.add.rectangle(cx - bw / 2, 254, bw * fill, 5, 0xe8c15a).setOrigin(0, 0.5));
     });
 
-    // portrait + effective stats
-    if (hasArt(this, id) && hasPose(id, 'portrait')) {
-      const p = add(this.add.image(14, 228, artKey(id, 'portrait')).setOrigin(0, 1));
-      p.setScale(118 / p.height);
-    }
+    // --- selected general: soldiers and gear -----------------------------------------------------
+    const id = this.sel;
+    const g = GENERALS[id];
     const t = assignedTo(s, id);
+    const cap = troopCap(s.roster[id].level);
     const gear = gearOf(s, id);
+    panel(276, 346);
+
+    add(text(this, 18, 284, `${g.name}의 병력`, 13, COLOR.gold));
+    add(text(this, W - 18, 286, `통솔 ${t.inf + t.cav} / ${cap}`, 11, COLOR.dim).setOrigin(1, 0));
+    const room = cap - t.inf - t.cav;
+    const troopRow = (k: 'inf' | 'cav', y: number) => {
+      const n = t[k];
+      const pool = free[k];
+      const set = (v: number) => this.commit(setAssign(s, id, { ...t, [k]: v } as Troops));
+      ico(k, 30, y, 24);
+      add(text(this, 48, y - 15, `${k === 'inf' ? '보병' : '기병'} ${n}`, 13));
+      const eff = k === 'inf' ? `체력 +${pct(INF_HP * n)} · 방어 +${pct(INF_DEF * n)}` : `공격 +${pct(CAV_ATK * n)} · 속도 +${Math.round((CAV_SPD * n) / 100)}`;
+      add(text(this, 48, y + 2, eff, 11, COLOR.dim));
+      const can = Math.min(pool, room);
+      btn(194, y, 40, 28, '비움', () => set(0), n > 0, 12);
+      btn(238, y, 40, 28, '−10', () => set(n - 10), n > 0, 12);
+      btn(282, y, 40, 28, '+10', () => set(n + Math.min(10, can)), can > 0, 12);
+      btn(326, y, 40, 28, '채움', () => set(n + can), can > 0, 12);
+    };
+    troopRow('inf', 318);
+    troopRow('cav', 354);
+
+    add(text(this, 18, 378, `${g.name}의 장비`, 13, COLOR.gold));
+    add(text(this, W - 18, 380, '↶ 되돌리면 도구를 전부 돌려받아요', 11, COLOR.dim).setOrigin(1, 0));
+    TRACK.forEach((tr, i) => {
+      const y = 412 + i * 40;
+      const lv = gear[tr.u];
+      const cost = upgradeCost(gear, tr.u);
+      const refund = undoRefund(gear, tr.u);
+      const tool = 'blocked' in cost ? tr.item(Math.min(gear.grade, GRADE_NAMES.length - 2)) : cost.item;
+      ico(tool, 30, y, 24, `${ITEMS[tool].name}(${ITEMS[tool].hanja}): ${ITEMS[tool].desc}`);
+      const level = tr.u === 'grade' ? GRADE_NAMES[lv] : `+${lv}/${MAX_LEVEL}`;
+      add(text(this, 48, y - 15, `${UPGRADE_LABEL[tr.u]} ${level}`, 13));
+      const next =
+        'blocked' in cost ? cost.blocked === '최대' ? `최대 · ${tr.effect(lv)}` : `${tr.effect(lv)} · ${cost.blocked}`
+        : `${tr.effect(lv)} → 다음 ${ITEMS[cost.item].name} ${cost.count}개 (보유 ${items[cost.item] ?? 0})`;
+      add(text(this, 48, y + 2, next, 11, COLOR.dim));
+      const ok = !('blocked' in cost) && (items[cost.item] ?? 0) >= cost.count;
+      btn(272, y, 36, 30, '↶', () => this.commit(unrefine(s, id, tr.u)), !('blocked' in refund), 15);
+      btn(322, y, 56, 30, '강화', () => this.commit(refine(s, id, tr.u)), ok, 13);
+    });
+
+    // effective stats
     const base = makeFighter(id, g, 'player', s.roster[id]);
     const f = makeFighter(id, g, 'player', s.roster[id]);
     applyGear(f, gear);
     applyTroops(f, t);
-    const up = (a: number, b: number) => (b > a ? ` (+${b - a})` : '');
+    const d = (a: number, b: number) => (b > a ? `(+${b - a})` : '');
+    add(this.add.rectangle(W / 2, 576, W - 40, 1, COLOR.panelLine));
     add(
-      text(
-        this,
-        150,
-        112,
-        [
-          `${g.name}  Lv ${lv}`,
-          `체력 ${f.maxHp}${up(base.maxHp, f.maxHp)}`,
-          `공격 ${f.atk}${up(base.atk, f.atk)}  · 기병 +${Math.round(t.cav / 20)}%`,
-          `방어 ${f.def}${up(base.def, f.def)}  · 보병 +${(t.inf / 25).toFixed(0)}%`,
-          `속도 ${f.spd}${up(base.spd, f.spd)}`,
-        ].join('\n'),
-        13,
-      ),
+      text(this, W / 2, 584, `체력 ${f.maxHp}${d(base.maxHp, f.maxHp)} · 공격 ${f.atk}${d(base.atk, f.atk)}\n방어 ${f.def}${d(base.def, f.def)} · 속도 ${f.spd}${d(base.spd, f.spd)}`, 12)
+        .setOrigin(0.5, 0)
+        .setAlign('center'),
     );
+  }
 
-    // troops
-    let y = 246;
-    const cap = troopCap(lv);
-    const free = unassigned(s);
-    const army = armyOf(s);
-    add(this.add.rectangle(W / 2, y - 6, W - 16, 118, COLOR.panel).setOrigin(0.5, 0).setStrokeStyle(1, COLOR.panelLine));
-    add(text(this, 18, y, `병력  통솔 ${t.inf + t.cav} / ${cap}`, 14, COLOR.gold));
-    add(text(this, W - 18, y + 2, `남은 병력 보병 ${free.inf} · 기병 ${free.cav}`, 11, COLOR.dim).setOrigin(1, 0));
-    const row = (label: string, value: number, set: (v: number) => void, ry: number) => {
-      add(text(this, 18, ry, `${label} ${value}`, 14));
-      [-50, -10, 10, 50].forEach((d, i) => btn(166 + i * 46, ry + 9, 42, 28, d > 0 ? `+${d}` : `${d}`, () => set(value + d)));
-    };
-    row('보병', t.inf, (v) => this.commit(setAssign(s, id, { inf: v, cav: t.cav })), y + 26);
-    row('기병', t.cav, (v) => this.commit(setAssign(s, id, { inf: t.inf, cav: v })), y + 58);
-    btn(W - 74, y + 96, 120, 26, s.autoArmy === false ? '자동 배분 켜기' : '자동 배분 중', () => this.commit(reassign({ ...s, autoArmy: true })), s.autoArmy === false);
-    add(text(this, 18, y + 90, `보유: 보병 ${army.inf} · 기병 ${army.cav}`, 11, COLOR.dim));
-
-    // refining
-    y = 380;
-    add(this.add.rectangle(W / 2, y - 6, W - 16, 172, COLOR.panel).setOrigin(0.5, 0).setStrokeStyle(1, COLOR.panelLine));
-    const weapon = g.skills[0].name;
-    add(text(this, 18, y, `무기  ${GRADE_NAMES[gear.grade]} ${weapon} +${gear.edge}`, 14, COLOR.gold));
-    add(text(this, 18, y + 76, `갑옷  옻칠 +${gear.lacquer} · 비늘 엮기 +${gear.lacing}`, 14, COLOR.gold));
-    const refineBtn = (u: Upgrade, x: number, by: number) => {
-      const c = upgradeCost(gear, u);
-      const label = 'blocked' in c ? `${UPGRADE_LABEL[u]} (${c.blocked})` : `${UPGRADE_LABEL[u]} · ${ITEMS[c.item].name} ×${c.count}`;
-      const ok = !('blocked' in c) && (s.items?.[c.item] ?? 0) >= c.count;
-      btn(x, by, 166, 34, label, () => this.commit(refine(s, id, u)), ok);
-    };
-    refineBtn('edge', 96, y + 42);
-    refineBtn('grade', 266, y + 42);
-    refineBtn('lacquer', 96, y + 118);
-    refineBtn('lacing', 266, y + 118);
-
-    // tools owned
-    const owned = ITEM_ORDER.map((k) => `${ITEMS[k].name} ${s.items?.[k] ?? 0}`).join(' · ');
-    add(text(this, W / 2, 566, `재련 도구: ${owned}`, 11, COLOR.dim).setOrigin(0.5).setWordWrapWidth(W - 24, true).setAlign('center'));
-
-    btn(W / 2, H - 30, 200, 40, '돌아가기', () => this.scene.start(this.back.key, this.back.data));
+  /** The general's face in a round frame (a lettered token until there is a portrait). */
+  private portrait(add: <T extends Phaser.GameObjects.GameObject>(o: T) => T, id: string, x: number, y: number, size: number) {
+    add(this.add.circle(x, y, size / 2, COLOR.player).setStrokeStyle(2, 0xf3e9d2, 0.8));
+    if (hasArt(this, id) && hasPose(id, 'portrait')) {
+      const p = add(this.add.image(x, y + size / 2 - 1, artKey(id, 'portrait')).setOrigin(0.5, 1));
+      p.setScale((size * 1.05) / p.height);
+    } else {
+      add(this.add.text(x, y, GENERALS[id].token, { fontFamily: FONT, fontSize: '20px', color: '#fff', fontStyle: 'bold', resolution: RES }).setOrigin(0.5));
+    }
   }
 }

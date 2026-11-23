@@ -23,8 +23,6 @@ export interface CampaignSave {
   army?: Troops;
   /** soldiers assigned to each general */
   assign?: Record<string, Troops>;
-  /** re-split soldiers automatically when new ones arrive (turned off by assigning by hand) */
-  autoArmy?: boolean;
   /** each general's weapon and armour upgrades */
   gear?: Record<string, Gear>;
   /** refining tools owned */

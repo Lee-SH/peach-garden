@@ -3,6 +3,7 @@ import { loadSave, newCampaign, writeSave, type CampaignSave } from '../core/sav
 import { SCENARIOS } from '../data/scenarios';
 import { preloadArt } from '../data/art';
 import { preloadRigs } from '../ui/rig';
+import { preloadIcons } from '../ui/icons';
 import { button, type Button, COLOR, H, hd, setButtonLabel, text, W } from '../ui/theme';
 import { readPrefs, writePrefs } from '../ui/prefs';
 
@@ -14,6 +15,7 @@ export class TitleScene extends Phaser.Scene {
   preload() {
     preloadArt(this);
     preloadRigs(this);
+    preloadIcons(this);
   }
 
   create() {
@@ -39,7 +41,7 @@ export class TitleScene extends Phaser.Scene {
       setButtonLabel(anim, animLabel());
     });
 
-    text(this, W / 2, H - 30, 'v0.9 · 1장 황건적의 난 (6화)', 12, COLOR.dim).setOrigin(0.5);
+    text(this, W / 2, H - 30, 'v0.9.1 · 1장 황건적의 난 (6화)', 12, COLOR.dim).setOrigin(0.5);
   }
 
   private drawPetals() {
