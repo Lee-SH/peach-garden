@@ -1,28 +1,43 @@
 #!/usr/bin/env node
 /**
- * Cut a 2×2 character sheet (white background) into separate transparent PNGs.
+ * Cut a character sheet (white background, poses laid out on a grid) into transparent PNGs.
  *
- *   node tools/cut-sheet.mjs <sheet.png> <outDir> <tl> <tr> <bl> <br> [maxSize]
+ *   node tools/cut-sheet.mjs <sheet.png> <outDir> [--grid CxR] [--max N | --scale K] <name>...
+ *
+ *   names are read left→right, top→bottom; add ":flip" to mirror one (e.g. a frame facing left).
  *   e.g. node tools/cut-sheet.mjs assets/raw/liubei-sheet.png public/art/liubei attack ult idle portrait
+ *        node tools/cut-sheet.mjs assets/raw/liubei-run.png public/art/liubei --grid 2x1 --scale 0.52 run1 run2:flip
  *
  * - Background = near-white, low-saturation pixels connected to the border, plus large
  *   enclosed white holes (e.g. between an arm and the body).
- * - Each drawn blob goes to the quadrant its centre is in, so effects that cross the
- *   midline (sword swooshes, petals) stay with their pose.
+ * - Each drawn blob goes to the grid cell its centre is in, so effects that cross a cell
+ *   line (sword swooshes, petals) stay with their pose.
  * - Edge pixels get partial alpha with the white fringe removed.
- * - Output is trimmed, then all poses are scaled by the SAME factor (macOS `sips`) so the largest
- *   one fits `maxSize` (default 360) — the character stays the same size across poses.
+ * - The feet position (centre of the bottom quarter, as a 0–1 ratio of the width) is merged into
+ *   <outDir>/anchors.json so the game can stand every pose on the same spot despite slash effects.
+ * - Output is trimmed, then every pose of the sheet is scaled by the SAME factor (macOS `sips`):
+ *   --max N fits the largest pose in N px (default 360); --scale K sets the factor directly,
+ *   which is how separate sheets of one character are matched to the same size.
  */
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { PNG } from 'pngjs';
 
-const [src, outDir, ...rest] = process.argv.slice(2);
-const names = rest.slice(0, 4);
-const maxSize = Number(rest[4] ?? 360);
-if (!src || !outDir || names.length !== 4) {
-  console.error('usage: cut-sheet.mjs <sheet.png> <outDir> <tl> <tr> <bl> <br> [maxSize]');
+const args = process.argv.slice(2);
+const opt = (flag) => {
+  const i = args.indexOf(flag);
+  if (i < 0) return undefined;
+  const [v] = args.splice(i, 2).slice(1);
+  return v;
+};
+const [cols, rows] = (opt('--grid') ?? '2x2').split('x').map(Number);
+const maxSize = Number(opt('--max') ?? 360);
+const scaleArg = opt('--scale');
+const fixedScale = scaleArg ? Number(scaleArg) : undefined;
+const [src, outDir, ...names] = args;
+if (!src || !outDir || names.length !== cols * rows) {
+  console.error('usage: cut-sheet.mjs <sheet.png> <outDir> [--grid CxR] [--max N | --scale K] <name>... (one per cell)');
   process.exit(1);
 }
 
@@ -106,12 +121,16 @@ for (let i = 0; i < N; i++) {
   }
   boxes.push(box);
 }
-const quadOf = (b) => ((b.y0 + b.y1) / 2 >= h / 2 ? 2 : 0) + ((b.x0 + b.x1) / 2 >= w / 2 ? 1 : 0);
+const quadOf = (b) =>
+  Math.min(rows - 1, Math.floor(((b.y0 + b.y1) / 2 / h) * rows)) * cols + Math.min(cols - 1, Math.floor(((b.x0 + b.x1) / 2 / w) * cols));
 const keep = boxes.map((b) => b.n >= 40);
 
 mkdirSync(outDir, { recursive: true });
 const written = [];
-names.forEach((name, q) => {
+const anchorFile = join(outDir, 'anchors.json');
+const anchors = existsSync(anchorFile) ? JSON.parse(readFileSync(anchorFile, 'utf8')) : {};
+names.forEach((spec, q) => {
+  const [name, mod] = spec.split(':');
   const mine = boxes.map((b, id) => keep[id] && quadOf(b) === q);
   const parts = boxes.filter((_, id) => mine[id]);
   if (!parts.length) return console.warn(`${name}: nothing found`);
@@ -124,7 +143,8 @@ names.forEach((name, q) => {
   for (let y = y0; y <= y1; y++)
     for (let x = x0; x <= x1; x++) {
       const i = y * w + x;
-      const o = ((y - y0) * out.width + (x - x0)) * 4;
+      const ox = mod === 'flip' ? x1 - x : x - x0;
+      const o = ((y - y0) * out.width + ox) * 4;
       if (bg[i] || label[i] < 0 || !mine[label[i]]) {
         out.data[o + 3] = 0;
         continue;
@@ -145,11 +165,22 @@ names.forEach((name, q) => {
     }
   const file = join(outDir, `${name}.png`);
   writeFileSync(file, PNG.sync.write(out));
+  // feet: mean x of solid pixels in the bottom quarter
+  let sx = 0;
+  let cnt = 0;
+  for (let y = Math.floor(out.height * 0.75); y < out.height; y++)
+    for (let x = 0; x < out.width; x++)
+      if (out.data[(y * out.width + x) * 4 + 3] > 128) {
+        sx += x;
+        cnt++;
+      }
+  anchors[name] = cnt ? Math.round((sx / cnt / out.width) * 1000) / 1000 : 0.5;
   written.push({ file, w: out.width, h: out.height });
 });
-const k = Math.min(1, maxSize / Math.max(...written.map((o) => Math.max(o.w, o.h))));
+const k = fixedScale ?? Math.min(1, maxSize / Math.max(...written.map((o) => Math.max(o.w, o.h))));
 for (const o of written) {
   const [nw, nh] = [Math.round(o.w * k), Math.round(o.h * k)];
   execFileSync('sips', ['-z', String(nh), String(nw), o.file], { stdio: 'ignore' });
   console.log(`${o.file}  ${o.w}×${o.h} → ${nw}×${nh}`);
 }
+writeFileSync(anchorFile, JSON.stringify(anchors, null, 2) + '\n');

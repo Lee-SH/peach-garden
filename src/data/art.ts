@@ -1,8 +1,12 @@
 import Phaser from 'phaser';
 
-/** Character art made from a 2×2 sheet with tools/cut-sheet.mjs (public/art/<id>/<pose>.png). */
-export type Pose = 'idle' | 'attack' | 'ult' | 'portrait';
-const POSES: Pose[] = ['idle', 'attack', 'ult', 'portrait'];
+/**
+ * Character art cut from Gemini sheets with tools/cut-sheet.mjs (public/art/<id>/<pose>.png).
+ * Every pose of a general is saved at the same pixel scale, plus anchors.json = feet x (0–1).
+ */
+export type Pose = 'idle' | 'ult' | 'portrait' | 'atk1' | 'atk2' | 'atk3' | 'atk4' | 'run1' | 'run2';
+const POSES: Pose[] = ['idle', 'ult', 'portrait', 'atk1', 'atk2', 'atk3', 'atk4', 'run1', 'run2'];
+export const ATTACK_POSES: Pose[] = ['atk1', 'atk2', 'atk3', 'atk4'];
 
 /** Generals that have art. Others are drawn as a round token with their letter. */
 export const ART_IDS = ['liubei'];
@@ -11,20 +15,56 @@ export const ART_IDS = ['liubei'];
 export const SPRITE_H = 76;
 
 export const artKey = (id: string, pose: Pose) => `art-${id}-${pose}`;
+const anchorKey = (id: string) => `art-${id}-anchors`;
+const runKey = (id: string) => `run-${id}`;
 
 export function preloadArt(scene: Phaser.Scene) {
-  for (const id of ART_IDS)
-    for (const pose of POSES) scene.load.image(artKey(id, pose), `${import.meta.env.BASE_URL}art/${id}/${pose}.png`);
+  for (const id of ART_IDS) {
+    const base = `${import.meta.env.BASE_URL}art/${id}/`;
+    for (const pose of POSES) scene.load.image(artKey(id, pose), `${base}${pose}.png`);
+    scene.load.json(anchorKey(id), `${base}anchors.json`);
+  }
 }
 
 export const hasArt = (scene: Phaser.Scene, id: string) => scene.textures.exists(artKey(id, 'idle'));
 
-/** One scale for every pose so the character keeps its size (poses share the sheet's scale). */
+/** One scale for every pose so the character keeps its size. */
 export function artScale(scene: Phaser.Scene, id: string) {
   return SPRITE_H / scene.textures.get(artKey(id, 'idle')).getSourceImage().height;
 }
 
+function feetX(scene: Phaser.Scene, id: string, pose: Pose) {
+  const a = scene.cache.json.get(anchorKey(id)) as Record<string, number> | undefined;
+  return a?.[pose] ?? 0.5;
+}
+
 /** Standing sprite with its feet at (x, y). */
 export function addSprite(scene: Phaser.Scene, id: string, x: number, y: number) {
-  return scene.add.image(x, y, artKey(id, 'idle')).setOrigin(0.5, 1).setScale(artScale(scene, id));
+  const s = scene.add.sprite(x, y, artKey(id, 'idle')).setScale(artScale(scene, id));
+  setPose(s, id, 'idle');
+  return s;
+}
+
+/** Show a still pose, standing on the pose's feet anchor (mirrored when facing left). */
+export function setPose(s: Phaser.GameObjects.Sprite, id: string, pose: Pose) {
+  s.anims.stop();
+  s.setTexture(artKey(id, pose));
+  const fx = feetX(s.scene, id, pose);
+  s.setOrigin(s.flipX ? 1 - fx : fx, 1);
+}
+
+/** Loop the run frames. */
+export function playRun(s: Phaser.GameObjects.Sprite, id: string) {
+  const scene = s.scene;
+  if (!scene.anims.exists(runKey(id))) {
+    scene.anims.create({
+      key: runKey(id),
+      frames: [{ key: artKey(id, 'run1') }, { key: artKey(id, 'run2') }],
+      frameRate: 9,
+      repeat: -1,
+    });
+  }
+  const fx = feetX(scene, id, 'run1');
+  s.setOrigin(s.flipX ? 1 - fx : fx, 1);
+  s.play(runKey(id));
 }

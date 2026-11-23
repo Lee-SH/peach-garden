@@ -23,7 +23,7 @@ import { button, COLOR, FONT, H, text, W, type Button } from '../ui/theme';
 import type { ResultData } from './ResultScene';
 import { drawField, FIELD_TOP, PANEL_Y } from '../ui/field';
 import { cellSpot } from '../core/formation';
-import { addSprite, artKey, hasArt, SPRITE_H, type Pose } from '../data/art';
+import { addSprite, ATTACK_POSES, hasArt, playRun, setPose, SPRITE_H, type Pose } from '../data/art';
 
 const PREFS_KEY = 'peach-garden.prefs';
 
@@ -33,9 +33,11 @@ const EFFECT_LABEL: Record<EffectType, string> = { atkUp: '공↑', defDown: '�
 interface View {
   c: Phaser.GameObjects.Container;
   /** what flashes when hit and receives taps: the sprite, or the round token */
-  body: Phaser.GameObjects.Image | Phaser.GameObjects.Arc;
+  body: Phaser.GameObjects.Sprite | Phaser.GameObjects.Arc;
   /** character art (generals with art only) */
-  sprite?: Phaser.GameObjects.Image;
+  sprite?: Phaser.GameObjects.Sprite;
+  /** running effects while the run cycle plays */
+  running?: { bob: Phaser.Tweens.Tween; dust: Phaser.Time.TimerEvent; baseY: number };
   ring: Phaser.GameObjects.Shape;
   bars: Phaser.GameObjects.Graphics;
   fx: Phaser.GameObjects.Text;
@@ -275,17 +277,32 @@ export class BattleScene extends Phaser.Scene {
     this.scrollBackground(850);
     for (const v of heroes) this.runTween(v, v.home.x, 850);
     await this.wait(900);
+    for (const v of heroes) this.stopRunFor(v);
   }
 
   private async runOut() {
     this.scrollBackground(850);
     for (const v of this.heroViews()) this.runTween(v, W + 60, 850);
     await this.wait(900);
+    for (const v of this.heroViews()) this.stopRunFor(v);
   }
 
   private runTween(v: View, x: number, duration: number) {
     this.tweens.add({ targets: v.c, x, duration, ease: 'Linear' });
-    this.tweens.add({ targets: v.c, y: v.home.y - 7, duration: 105, yoyo: true, repeat: Math.max(0, Math.floor(duration / 210) - 1) });
+    const id = this.idOf(v);
+    if (v.sprite && id) this.startRun(v, id);
+    else this.tweens.add({ targets: v.c, y: v.home.y - 7, duration: 105, yoyo: true, repeat: Math.max(0, Math.floor(duration / 210) - 1) });
+  }
+
+  private stopRunFor(v: View) {
+    const id = this.idOf(v);
+    this.stopRun(v);
+    if (id) this.setPose(v, id, 'idle');
+  }
+
+  private idOf(v: View) {
+    for (const [id, w] of this.views) if (w === v) return id;
+    return undefined;
   }
 
   private scrollBackground(duration: number) {
@@ -312,13 +329,29 @@ export class BattleScene extends Phaser.Scene {
     if (!v) return;
     const s = choice.skill;
     const dir = actor.side === 'player' ? 1 : -1;
-    // Ultimates and support skills raise the sword; attacks lunge
-    this.setPose(v, s.ultimate || s.power === 0 ? 'ult' : 'attack', actor.id);
+    const pose = this.skillPose(s);
+    // Ultimates and support skills raise the sword before anything else
+    if (s.ultimate || s.power === 0) this.setPose(v, actor.id, 'ult');
     if (s.ultimate) await this.ultimateCutIn(actor, s);
     else this.floatAt(v.c.x, v.c.y - 46, s.name, actor.side === 'player' ? COLOR.blue : '#ffd27a', 13);
 
     const t = choice.targetId ? this.views.get(choice.targetId) : undefined;
-    if (t) {
+    if (t && v.sprite) {
+      // Run up to the target, strike, run back
+      const dx = t.c.x - v.c.x - dir * 54;
+      const dy = t.c.y - v.c.y;
+      this.startRun(v, actor.id);
+      await this.tweenAsync({ targets: v.c, x: v.c.x + dx, y: v.c.y + dy, duration: 320, ease: 'Sine.easeIn' });
+      this.stopRun(v);
+      this.setPose(v, actor.id, pose);
+      await this.tweenAsync({ targets: v.c, x: v.c.x + dir * 10, duration: 70, ease: 'Quad.easeOut' });
+      this.showEvents(events);
+      this.refresh(null);
+      await this.wait(260);
+      this.startRun(v, actor.id, true);
+      await this.tweenAsync({ targets: v.c, x: v.home.x, y: v.home.y, duration: 300, ease: 'Sine.easeInOut' });
+      this.stopRun(v);
+    } else if (t) {
       const dx = t.c.x - v.c.x - dir * 50;
       const dy = t.c.y - v.c.y;
       await this.tweenAsync({ targets: v.c, x: v.c.x + dx, y: v.c.y + dy, duration: 150, ease: 'Quad.easeIn' });
@@ -326,18 +359,57 @@ export class BattleScene extends Phaser.Scene {
       this.refresh(null);
       await this.tweenAsync({ targets: v.c, x: v.home.x, y: v.home.y, duration: 190, ease: 'Quad.easeOut' });
     } else {
+      if (s.power > 0) this.setPose(v, actor.id, pose);
       await this.tweenAsync({ targets: v.c, x: v.home.x + dir * 24, duration: 110, yoyo: true });
       if (s.power > 0) this.cameras.main.shake(140, 0.006);
       this.showEvents(events);
       this.refresh(null);
       await this.wait(220);
     }
-    this.setPose(v, 'idle', actor.id);
+    this.setPose(v, actor.id, 'idle');
     await this.wait(220);
   }
 
-  private setPose(v: View, pose: Pose, id: string) {
-    v.sprite?.setTexture(artKey(id, pose));
+  /** Basic attacks vary; cooldown strikes and single-target ultimates leap; area attacks spin. */
+  private skillPose(s: Skill): Pose {
+    if (s.target === 'allEnemies') return 'atk4';
+    if (s.cooldown > 0 || s.ultimate) return 'atk3';
+    return ATTACK_POSES[Math.floor(Math.random() * 3)];
+  }
+
+  private setPose(v: View, id: string, pose: Pose) {
+    if (v.sprite) setPose(v.sprite, id, pose);
+  }
+
+  /** Run cycle + bounce + forward lean + dust puffs. `back` = running back to the left. */
+  private startRun(v: View, id: string, back = false) {
+    const sp = v.sprite;
+    if (!sp) return;
+    this.stopRun(v);
+    sp.setFlipX(back);
+    playRun(sp, id);
+    sp.anims.timeScale = this.fast ? 2 : 1;
+    sp.setAngle(back ? -7 : 7);
+    const baseY = sp.y;
+    const bob = this.tweens.add({ targets: sp, y: baseY - 5, duration: 110, yoyo: true, repeat: -1, ease: 'Sine.easeOut' });
+    const dust = this.time.addEvent({
+      delay: 120,
+      loop: true,
+      callback: () => {
+        const puff = this.add.ellipse(v.c.x + (back ? 10 : -10), v.c.y + 24, 10, 6, 0xd8c8a0, 0.6).setDepth(9);
+        this.tweens.add({ targets: puff, x: puff.x + (back ? 14 : -14), y: puff.y - 6, scale: 1.8, alpha: 0, duration: 380, onComplete: () => puff.destroy() });
+      },
+    });
+    v.running = { bob, dust, baseY };
+  }
+
+  private stopRun(v: View) {
+    if (!v.running || !v.sprite) return;
+    v.running.bob.stop();
+    v.running.dust.remove();
+    v.sprite.anims.stop();
+    v.sprite.setAngle(0).setFlipX(false).setY(v.running.baseY);
+    v.running = undefined;
   }
 
   private async ultimateCutIn(actor: Fighter, s: Skill) {
@@ -426,7 +498,7 @@ export class BattleScene extends Phaser.Scene {
     let parts: Phaser.GameObjects.GameObject[];
     let body: View['body'];
     let ring: View['ring'];
-    let sprite: Phaser.GameObjects.Image | undefined;
+    let sprite: Phaser.GameObjects.Sprite | undefined;
     let fx: Phaser.GameObjects.Text;
     if (art) {
       // Feet on the shadow; the actor marker is a gold ellipse on the ground
