@@ -11,6 +11,8 @@ export interface Line {
 export interface Wave {
   level: number;
   enemies: (keyof typeof ENEMIES)[];
+  /** what Liu Bei says before this group (default lines in src/data/briefing.ts) */
+  line?: string;
 }
 
 export interface Scenario {

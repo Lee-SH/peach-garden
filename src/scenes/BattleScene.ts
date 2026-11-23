@@ -27,6 +27,7 @@ import { readPrefs, writePrefs } from '../ui/prefs';
 import { hasRig, Rig } from '../ui/rig';
 import { addSprite, artKey, ATTACK_POSES, hasArt, hasPose, playRun, setPose, SPRITE_H, type Pose } from '../data/art';
 import { enemyHeight, pickEnemyArt } from '../data/enemyArt';
+import { briefingLine } from '../data/briefing';
 
 
 const EFFECT_LABEL: Record<EffectType, string> = { atkUp: '공↑', defDown: '방↓', stun: '기절', burn: '화상' };
@@ -130,6 +131,7 @@ export class BattleScene extends Phaser.Scene {
   private async run() {
     await this.runIn();
     this.announceWave();
+    if (!(await this.briefing())) return;
     for (;;) {
       if (!this.scene.isActive()) return;
       const o = outcome(this.b);
@@ -138,6 +140,7 @@ export class BattleScene extends Phaser.Scene {
         this.wave += 1;
         if (this.wave >= this.sc.waves.length) return this.finish(true);
         await this.nextWave();
+        if (!(await this.briefing())) return;
         continue;
       }
 
@@ -275,6 +278,45 @@ export class BattleScene extends Phaser.Scene {
       if (v && amount > 0) this.floatAt(v.c.x, v.c.y - 24, `+${amount}`, '#7cff8a', 14);
     }
     this.announceWave();
+  }
+
+  /**
+   * Pause before each group: Liu Bei says a line, the player taps "전투 시작" (→ true) or leaves
+   * for the title (→ false; like a defeat, the battle isn't recorded).
+   */
+  private briefing(): Promise<boolean> {
+    const boss = this.b.fighters.find((f) => f.side === 'enemy' && f.isBoss && !f.dead);
+    const enemies = this.b.fighters.filter((f) => f.side === 'enemy' && !f.dead).length;
+    const total = this.sc.waves.length;
+    const line = briefingLine(this.wave, total, boss?.name, this.sc.waves[this.wave].line);
+    const D = 30;
+    const items: Phaser.GameObjects.GameObject[] = [];
+    items.push(this.add.rectangle(W / 2, PANEL_Y, W, H - PANEL_Y, COLOR.panel).setOrigin(0.5, 0).setStrokeStyle(1, COLOR.panelLine).setDepth(D));
+    const textX = hasPose('liubei', 'portrait') && this.textures.exists(artKey('liubei', 'portrait')) ? 128 : 16;
+    if (textX > 16) {
+      const p = this.add.image(10, H - 64, artKey('liubei', 'portrait')).setOrigin(0, 1).setDepth(D);
+      p.setScale(140 / p.height);
+      items.push(p);
+    }
+    items.push(text(this, textX, PANEL_Y + 14, '유비', 16, COLOR.gold).setDepth(D));
+    items.push(text(this, textX, PANEL_Y + 40, line, 15).setWordWrapWidth(W - textX - 14, true).setDepth(D));
+    items.push(
+      text(this, textX, PANEL_Y + 128, `무리 ${this.wave + 1} / ${total} · 적 ${enemies}명${boss ? ` · 적장 ${boss.name}` : ''}`, 12, COLOR.dim).setDepth(D),
+    );
+    return new Promise((resolve) => {
+      const done = (go: boolean) => {
+        for (const o of items) o.destroy();
+        resolve(go);
+      };
+      const start = button(this, W - 108, H - 32, 190, 44, '전투 시작 ▶', () => done(true));
+      const quit = button(this, 62, H - 32, 104, 40, '타이틀로', () => {
+        done(false);
+        this.scene.start('Title');
+      });
+      start.container.setDepth(D + 1);
+      quit.container.setDepth(D + 1);
+      items.push(start.container, quit.container);
+    });
   }
 
   private heroViews() {
