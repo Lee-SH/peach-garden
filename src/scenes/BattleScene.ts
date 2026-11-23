@@ -350,7 +350,7 @@ export class BattleScene extends Phaser.Scene {
       const dx = t.c.x - v.c.x - dir * 54;
       const dy = t.c.y - v.c.y;
       this.startRun(v, actor.id);
-      await this.tweenAsync({ targets: v.c, x: v.c.x + dx, y: v.c.y + dy, duration: 360, ease: 'Linear' });
+      await this.tweenAsync({ targets: v.c, x: v.c.x + dx, y: v.c.y + dy, duration: 480, ease: 'Linear' });
       this.stopRun(v);
       if (v.rig) await v.rig.attack(pose);
       else {
@@ -361,7 +361,7 @@ export class BattleScene extends Phaser.Scene {
       this.refresh(null);
       await this.wait(260);
       this.startRun(v, actor.id, true);
-      await this.tweenAsync({ targets: v.c, x: v.home.x, y: v.home.y, duration: 340, ease: 'Linear' });
+      await this.tweenAsync({ targets: v.c, x: v.home.x, y: v.home.y, duration: 440, ease: 'Linear' });
       this.stopRun(v);
     } else if (t) {
       const dx = t.c.x - v.c.x - dir * 50;
