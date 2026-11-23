@@ -391,7 +391,7 @@ export class BattleScene extends Phaser.Scene {
     sp.anims.timeScale = this.fast ? 2 : 1;
     sp.setAngle(back ? -7 : 7);
     const baseY = sp.y;
-    const bob = this.tweens.add({ targets: sp, y: baseY - 5, duration: 110, yoyo: true, repeat: -1, ease: 'Sine.easeOut' });
+    const bob = this.tweens.add({ targets: sp, y: baseY - 4, duration: 83, yoyo: true, repeat: -1, ease: 'Sine.easeOut' });
     const dust = this.time.addEvent({
       delay: 120,
       loop: true,
