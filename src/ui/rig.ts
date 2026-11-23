@@ -7,6 +7,7 @@ import {
   REST,
   RIG_PARTS,
   RIGS,
+  RUN_CADENCE,
   runPose,
   type BoneName,
   type Pose,
@@ -163,7 +164,7 @@ export class Rig {
     this.t += dt;
     if (this.mode === 'idle') this.blendTo(idlePose(this.t), dt * 12);
     else if (this.mode === 'run') {
-      this.phase += dt * Math.PI * 2 * 2.6;
+      this.phase += dt * Math.PI * 2 * RUN_CADENCE;
       this.blendTo(runPose(this.phase), dt * 25);
     }
     this.layout();

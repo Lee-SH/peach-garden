@@ -98,33 +98,47 @@ export const REST: Required<Pose> = {
   bodyY: 0,
 };
 
-/** Breathing idle at time t (seconds). */
+/** Breathing idle at time t (seconds). The head rides along with the body (a big chibi head that stays still looks pasted on). */
 export function idlePose(t: number): Pose {
   const b = Math.sin(t * 2.4);
-  return { ...REST, bodyY: b * 5, torso: b * 1.2, head: -b * 1.5, aF1: REST.aF1 - b * 2, aB1: REST.aB1 + b * 2 };
+  return { ...REST, bodyY: b * 6, torso: b * 1.5, head: b * 2, aF1: REST.aF1 - b * 3, aB1: REST.aB1 + b * 3 };
 }
 
-/** Run cycle at phase p (radians, one stride pair per 2π). */
+/** Strides per second of the run cycle (one stride = half a cycle). */
+export const RUN_CADENCE = 1.7;
+
+/**
+ * Run cycle at phase p (radians; one left + right stride per 2π).
+ * Legs at full spread (|sin p| = 1) is the flight phase: the body is lifted so both feet leave the
+ * ground. The recovering leg folds its knee hard; arms pump opposite the legs with bent elbows;
+ * the head follows the lean and nods with each stride.
+ */
 export function runPose(p: number): Pose {
   const s = Math.sin(p);
   const c = Math.cos(p);
+  const torso = -22 + 3 * Math.sin(2 * p);
+  const aF1 = 50 * s;
+  const aB1 = -50 * s;
+  const aF2 = -95 - 10 * s;
+  const aB2 = -95 + 10 * s;
   return {
     ...REST,
-    torso: -12,
-    head: 8,
-    lF1: -42 * s,
-    lB1: 42 * s,
-    lF2: 22 + 48 * Math.max(0, c),
-    lB2: 22 + 48 * Math.max(0, -c),
-    aF1: 38 * s,
-    aB1: -38 * s,
-    aF2: -75,
-    aB2: -75,
-    // swords trail back and down whatever the arm swing
-    sF: -60 - 38 * s,
-    sB: -60 + 38 * s,
-    skirt: 6 * s,
-    bodyY: -20 * Math.abs(c),
+    torso,
+    head: 6 + 5 * Math.sin(2 * p + 0.8),
+    lF1: -55 * s,
+    lB1: 55 * s,
+    // the leg swinging forward (thigh velocity forward) folds its knee
+    lF2: 12 + 95 * Math.max(0, c),
+    lB2: 12 + 95 * Math.max(0, -c),
+    aF1,
+    aB1,
+    aF2,
+    aB2,
+    // swords trail back and down: world angle ≈ 225° whatever the arms do
+    sF: 225 - torso - aF1 - aF2 - 360,
+    sB: 225 - torso - aB1 - aB2 - 360,
+    skirt: 10 * s,
+    bodyY: -55 * Math.abs(s),
   };
 }
 

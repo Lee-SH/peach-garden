@@ -15,9 +15,7 @@ export class RigLabScene extends Phaser.Scene {
     this.add.rectangle(0, 0, W, 640, 0x6b5a3c).setOrigin(0);
     const poses: [string, (r: Rig) => void][] = [
       ['rest', (r) => void r.hold(REST, 1)],
-      ['run 0', (r) => void r.hold(runPose(0), 1)],
-      ['run 90', (r) => void r.hold(runPose(Math.PI / 2), 1)],
-      ['run 270', (r) => void r.hold(runPose((3 * Math.PI) / 2), 1)],
+      ...[0, 45, 90, 135, 180, 225, 270, 315].map((d): [string, (r: Rig) => void] => [`run ${d}`, (r) => void r.hold(runPose((d * Math.PI) / 180), 1)]),
       ...Object.entries(MOVES).flatMap(([k, m]): [string, (r: Rig) => void][] => [
         [`${k} wind`, (r) => void r.hold(m.wind, 1)],
         [`${k} hit`, (r) => void r.hold(m.strike, 1)],
