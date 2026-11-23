@@ -1,11 +1,11 @@
 import Phaser from 'phaser';
+import { ART_FILES } from './artManifest';
 
 /**
  * Character art cut from Gemini sheets with tools/cut-sheet.mjs (public/art/<id>/<pose>.png).
  * Every pose of a general is saved at the same pixel scale, plus anchors.json = feet x (0–1).
  */
 export type Pose = string;
-const BASE_POSES: Pose[] = ['idle', 'ult', 'portrait'];
 export const ATTACK_POSES: Pose[] = ['atk1', 'atk2', 'atk3', 'atk4'];
 
 interface RunCycle {
@@ -16,17 +16,27 @@ interface RunCycle {
 }
 
 /**
- * Generals that have frame art. Everyone has idle/ult/portrait; `attacks` are the attack images
- * (one 'attack' when only the basic 2×2 sheet exists); `run` is optional (without it the idle image
- * bobs). Generals without art are drawn as a round token.
+ * Which images exist comes from the generated manifest (tools/art-manifest.mjs). Characters whose
+ * frame art has a run cycle list it here; without one the idle image bobs while moving.
+ * Characters without any art are drawn as a round token.
  */
-const ART: Record<string, { attacks: Pose[]; run?: RunCycle }> = {
+const RUNS: Record<string, RunCycle> = {
   // r5 (a deep kneel without swords) is replaced by r2 so the bounce stays small and the swords stay in hand
-  liubei: { attacks: ATTACK_POSES, run: { frames: ['r1', 'r2', 'r3', 'r4', 'r2', 'r6'], contact: [1, 4] } },
-  guanyu: { attacks: ['attack'] },
-  zhangfei: { attacks: ['attack'] },
+  liubei: { frames: ['r1', 'r2', 'r3', 'r4', 'r2', 'r6'], contact: [1, 4] },
 };
-export const ART_IDS = Object.keys(ART);
+export const ART_IDS = Object.keys(ART_FILES);
+
+/** Missing poses fall back: atk1–4/special → attack, ult → attack, hurt/down → idle. */
+const FALLBACK: Record<string, Pose[]> = {
+  atk1: ['attack'], atk2: ['attack'], atk3: ['attack'], atk4: ['attack'],
+  special: ['attack'], ult: ['attack'], attack: ['atk1'], hurt: [], down: [],
+};
+export function resolvePose(id: string, pose: Pose): Pose {
+  const files = ART_FILES[id] ?? [];
+  if (files.includes(pose)) return pose;
+  return (FALLBACK[pose] ?? []).find((p) => files.includes(p)) ?? 'idle';
+}
+export const hasPose = (id: string, pose: Pose) => (ART_FILES[id] ?? []).includes(pose);
 
 /** On-screen height of a standing general (px in the 360×640 game). */
 export const SPRITE_H = 76;
@@ -44,7 +54,7 @@ const runKey = (id: string) => `run-${id}`;
 export function preloadArt(scene: Phaser.Scene) {
   for (const id of ART_IDS) {
     const base = `${import.meta.env.BASE_URL}art/${id}/`;
-    for (const pose of new Set([...BASE_POSES, ...ART[id].attacks, ...(ART[id].run?.frames ?? [])])) scene.load.image(artKey(id, pose), `${base}${pose}.png`);
+    for (const pose of ART_FILES[id]) scene.load.image(artKey(id, pose), `${base}${pose}.png`);
     scene.load.json(anchorKey(id), `${base}anchors.json`);
   }
 }
@@ -53,9 +63,9 @@ export const hasArt = (scene: Phaser.Scene, id: string) => scene.textures.exists
 
 const texH = (scene: Phaser.Scene, id: string, pose: Pose) => scene.textures.get(artKey(id, pose)).getSourceImage().height;
 
-/** One scale for every pose so the character keeps its size. */
-export function artScale(scene: Phaser.Scene, id: string) {
-  return SPRITE_H / texH(scene, id, 'idle');
+/** One scale for every pose so the character keeps its size (`height` = on-screen idle height). */
+export function artScale(scene: Phaser.Scene, id: string, height = SPRITE_H) {
+  return height / texH(scene, id, 'idle');
 }
 
 function feetX(scene: Phaser.Scene, id: string, pose: Pose) {
@@ -65,7 +75,7 @@ function feetX(scene: Phaser.Scene, id: string, pose: Pose) {
 
 /** Vertical origin: 1 = feet on the ground; run frames get their bounce damped. */
 function originY(scene: Phaser.Scene, id: string, pose: Pose) {
-  const frames = ART[id]?.run?.frames ?? [];
+  const frames = RUNS[id]?.frames ?? [];
   if (!frames.includes(pose)) return 1;
   const heights = frames.map((f) => texH(scene, id, f));
   const avg = heights.reduce((a, c) => a + c, 0) / heights.length;
@@ -79,8 +89,8 @@ function anchor(s: Phaser.GameObjects.Sprite, id: string, pose: Pose) {
 }
 
 /** Standing sprite with its feet at (x, y). */
-export function addSprite(scene: Phaser.Scene, id: string, x: number, y: number) {
-  const s = scene.add.sprite(x, y, artKey(id, 'idle')).setScale(artScale(scene, id));
+export function addSprite(scene: Phaser.Scene, id: string, x: number, y: number, height = SPRITE_H) {
+  const s = scene.add.sprite(x, y, artKey(id, 'idle')).setScale(artScale(scene, id, height));
   setPose(s, id, 'idle');
   return s;
 }
@@ -90,8 +100,7 @@ export function setPose(s: Phaser.GameObjects.Sprite, id: string, pose: Pose) {
   s.off(Phaser.Animations.Events.ANIMATION_UPDATE);
   s.anims.stop();
   stopBob(s);
-  // atk1–atk4 fall back to the single attack image
-  const p = pose.startsWith('atk') && !ART[id]?.attacks.includes(pose) ? ART[id]?.attacks[0] ?? 'idle' : pose;
+  const p = resolvePose(id, pose);
   s.setTexture(artKey(id, p));
   anchor(s, id, p);
 }
@@ -113,7 +122,7 @@ function stopBob(s: Phaser.GameObjects.Sprite) {
 
 /** Loop the run cycle; `onContact` fires when a foot lands. */
 export function playRun(s: Phaser.GameObjects.Sprite, id: string, onContact?: () => void) {
-  const run = ART[id]?.run;
+  const run = RUNS[id];
   if (!run) {
     setPose(s, id, 'idle');
     bob(s);

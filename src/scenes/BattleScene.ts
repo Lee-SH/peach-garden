@@ -17,7 +17,7 @@ import {
 } from '../core/combat';
 import { applyBattleResult, loadSave, newCampaign, writeSave, type CampaignSave } from '../core/save';
 import type { Battle, CombatEvent, EffectType, Fighter, Skill } from '../core/types';
-import { buildParty, buildWave, SCENARIOS, type Scenario } from '../data/scenarios';
+import { buildParty, buildWave, SCENARIO_ORDER, SCENARIOS, type Scenario } from '../data/scenarios';
 import { GENERALS } from '../data/units';
 import { button, COLOR, FONT, H, setButtonLabel, text, W, type Button } from '../ui/theme';
 import type { ResultData } from './ResultScene';
@@ -25,7 +25,8 @@ import { drawField, FIELD_TOP, PANEL_Y } from '../ui/field';
 import { cellSpot } from '../core/formation';
 import { readPrefs, writePrefs } from '../ui/prefs';
 import { hasRig, Rig } from '../ui/rig';
-import { addSprite, ATTACK_POSES, hasArt, playRun, setPose, SPRITE_H, type Pose } from '../data/art';
+import { addSprite, artKey, ATTACK_POSES, hasArt, hasPose, playRun, setPose, SPRITE_H, type Pose } from '../data/art';
+import { enemyHeight, pickEnemyArt } from '../data/enemyArt';
 
 
 const EFFECT_LABEL: Record<EffectType, string> = { atkUp: '공↑', defDown: '방↓', stun: '기절', burn: '화상' };
@@ -39,8 +40,10 @@ interface View {
   rig?: Rig;
   /** dust puffs while a rig runs */
   dust?: Phaser.Time.TimerEvent;
-  /** character art (generals with art only) */
+  /** frame art (generals without a rig, enemies with a drawn look) */
   sprite?: Phaser.GameObjects.Sprite;
+  /** which art folder the sprite uses (enemy looks vary per fighter) */
+  artId?: string;
   /** running effects while the run cycle plays */
   running?: boolean;
   ring: Phaser.GameObjects.Shape;
@@ -337,7 +340,8 @@ export class BattleScene extends Phaser.Scene {
     if (!v) return;
     const s = choice.skill;
     const dir = actor.side === 'player' ? 1 : -1;
-    const pose = this.skillPose(s);
+    // enemies: officers show their special image for their big skills; soldiers just attack
+    const pose = actor.side === 'enemy' ? (s.cooldown > 0 ? 'special' : 'attack') : this.skillPose(s);
     // Ultimates and support skills raise the sword before anything else
     if (s.ultimate || s.power === 0) this.setPose(v, actor.id, 'ult');
     const animated = !!(v.sprite || v.rig);
@@ -390,8 +394,8 @@ export class BattleScene extends Phaser.Scene {
     return ATTACK_POSES[Math.floor(Math.random() * 3)];
   }
 
-  private setPose(v: View, id: string, pose: Pose) {
-    if (v.sprite) setPose(v.sprite, id, pose);
+  private setPose(v: View, _id: string, pose: Pose) {
+    if (v.sprite && v.artId) setPose(v.sprite, v.artId, pose);
     if (v.rig) {
       if (pose === 'idle') v.rig.idle();
       else if (pose === 'ult') void v.rig.raise();
@@ -411,7 +415,7 @@ export class BattleScene extends Phaser.Scene {
       v.dust = this.time.addEvent({ delay: 192, loop: true, callback: puff });
     } else if (v.sprite) {
       v.sprite.setFlipX(back);
-      playRun(v.sprite, id, puff);
+      playRun(v.sprite, v.artId ?? id, puff);
       v.sprite.anims.timeScale = this.fast ? 2 : 1;
     } else return;
     v.running = true;
@@ -449,6 +453,7 @@ export class BattleScene extends Phaser.Scene {
           this.floatAt(v.c.x, v.c.y - 20, e.crit ? `치명 ${e.amount}` : `${e.amount}`, e.crit ? '#ffcf3b' : COLOR.red, e.crit ? 20 : 17);
           this.tweens.add({ targets: v.body, alpha: 0.3, duration: 70, yoyo: true, repeat: 1 });
           v.rig?.hit();
+          this.flinch(v, f);
           break;
         case 'burn':
           this.floatAt(v.c.x, v.c.y - 20, `화상 ${e.amount}`, '#ff8a3b', 15);
@@ -461,15 +466,29 @@ export class BattleScene extends Phaser.Scene {
         case 'stunned':
           this.floatAt(v.c.x, v.c.y - 20, '기절!', '#e0d0ff', 15);
           break;
-        case 'death':
-          this.tweens.add({ targets: v.c, alpha: 0, y: v.c.y + 10, duration: 450, delay: 150 });
+        case 'death': {
+          const down = !!(v.sprite && v.artId && hasPose(v.artId, 'down'));
+          if (down) setPose(v.sprite!, v.artId!, 'down');
+          this.tweens.add({ targets: v.c, alpha: 0, y: v.c.y + 10, duration: 450, delay: down ? 450 : 150 });
           if (f.side === 'player') {
             this.fallen.push(f.name);
             if (!f.isLord) this.banner(`${f.name} 전사…`, COLOR.red);
           }
           break;
+        }
       }
     }
+  }
+
+  /** Show the hurt image briefly (frame art that has one). */
+  private flinch(v: View, f: Fighter) {
+    const sp = v.sprite;
+    const id = v.artId;
+    if (!sp || !id || f.dead || !hasPose(id, 'hurt') || v.running) return;
+    setPose(sp, id, 'hurt');
+    this.time.delayedCall(300, () => {
+      if (!f.dead && sp.texture.key === artKey(id, 'hurt')) setPose(sp, id, 'idle');
+    });
   }
 
   private finish(victory: boolean) {
@@ -511,7 +530,14 @@ export class BattleScene extends Phaser.Scene {
     const fill = f.side === 'player' ? COLOR.player : f.isBoss ? COLOR.boss : COLOR.enemy;
     const r = radius(f);
     const useRig = f.side === 'player' && this.useRig && hasRig(this, f.id);
-    const art = f.side === 'player' && !useRig && hasArt(this, f.id);
+    const enemyType = f.id.split('-')[2] ?? f.id;
+    const stage = SCENARIO_ORDER.indexOf(this.sc.id) + 1;
+    const artId =
+      useRig ? undefined
+      : f.side === 'player' ? (hasArt(this, f.id) ? f.id : undefined)
+      : pickEnemyArt(enemyType, stage, (a) => hasArt(this, a), Math.random) ?? undefined;
+    const art = !!artId;
+    const height = f.side === 'player' ? SPRITE_H : enemyHeight(enemyType, !!f.isBoss);
     let rig: Rig | undefined;
     const bars = this.add.graphics();
     let parts: Phaser.GameObjects.GameObject[];
@@ -536,8 +562,8 @@ export class BattleScene extends Phaser.Scene {
       // Feet on the shadow; the actor marker is a gold ellipse on the ground
       ring = this.add.ellipse(0, r + 2, r * 2 + 18, 14).setStrokeStyle(3, 0xffe08a).setVisible(false);
       const shadow = this.add.ellipse(0, r + 2, r * 2, 8, 0x000000, 0.35);
-      sprite = addSprite(this, f.id, 0, r + 4);
-      fx = text(this, 0, r + 4 - SPRITE_H - 8, '', 11, '#e0d0ff').setOrigin(0.5);
+      sprite = addSprite(this, artId!, 0, r + 4, height);
+      fx = text(this, 0, r + 4 - height - 8, '', 11, '#e0d0ff').setOrigin(0.5);
       body = sprite;
       parts = [ring, shadow, sprite, bars, fx];
     } else {
@@ -554,7 +580,7 @@ export class BattleScene extends Phaser.Scene {
     const c = this.add.container(0, 0, parts).setDepth(10);
     if (!rig) body.setInteractive({ useHandCursor: true });
     body.on('pointerup', () => this.onFighterTap(f));
-    this.views.set(f.id, { c, body, sprite, rig, ring, bars, fx, home: { x: 0, y: 0 } });
+    this.views.set(f.id, { c, body, sprite, artId, rig, ring, bars, fx, home: { x: 0, y: 0 } });
   }
 
   /** Heroes stand on their formation cell; enemies stagger on the right. */
@@ -570,7 +596,7 @@ export class BattleScene extends Phaser.Scene {
     enemies.forEach((f, i) => {
       const v = this.views.get(f.id)!;
       v.home = { x: [238, 298][i % 2], y: 290 + (i - (enemies.length - 1) / 2) * step };
-      v.c.setPosition(v.home.x, v.home.y);
+      v.c.setPosition(v.home.x, v.home.y).setDepth(10 + v.home.y / 1000);
     });
   }
 
@@ -593,6 +619,10 @@ export class BattleScene extends Phaser.Scene {
       const targetable = !!this.pending && !!s && f.side === 'enemy' && (s.target === 'enemy' || s.target === 'allEnemies');
       if (v.body instanceof Phaser.GameObjects.Arc)
         v.body.setStrokeStyle(targetable ? 3 : 2, targetable ? 0xff3b30 : f.isLord || f.isBoss ? 0xffe08a : 0xffffff);
+      else if (v.sprite) {
+        if (targetable) v.sprite.setTint(0xff9a9a);
+        else v.sprite.clearTint();
+      }
     }
     this.refreshOrder();
     this.refreshPanel(actor);

@@ -112,6 +112,21 @@
     - 시트마다 캐릭터 크기가 달라서 `--scale`로 기본 시트와 머리 크기를 맞춘다. 유비는 기본 시트 0.72, 공격 0.70, 달리기 1.16이다.
     - 도구가 포즈마다 발 위치를 `anchors.json`에 기록한다. 그래서 칼바람 효과가 있어도 같은 자리에 선다.
   - 마지막으로 `src/data/art.ts`의 `ART_IDS`에 id를 추가한다.
+- **적 그림 (v0.8~)**: 적은 프레임 그림(2×2 시트, 왼쪽을 보는 자세)을 쓴다.
+  - 일반 병사 시트: 서 있기, 공격 / 움찔, 쓰러짐
+  - 적장 시트: 서 있기, 공격 / 특수기, 초상화
+  - 넣는 방법: `node tools/add-art.mjs <시트> <artId> grunt|boss`. 원본을 보관하고, 자르고, 그림 목록(`src/data/artManifest.ts`)을 갱신한다. 게임은 목록에 있는 그림만 불러오고, 그림이 없는 적은 원형 말로 나온다.
+  - 병사 모습은 `src/data/enemyArt.ts`에 정의한다. 화가 진행될수록 차림새가 좋아지고, 한 전투 안에서도 무작위로 섞인다.
+
+    | 병종 | 모습 (artId, 나오는 화) |
+    |---|---|
+    | 황건병 | 농민병 rebel_farmer 1~3, 도적 rebel_bandit 1~4, 정예병 rebel_elite 4~6 |
+    | 궁병 | 사냥꾼 archer_hunter 1~3, 노병 archer_xbow 4~6 |
+    | 도사 | 부적 도사 sorc_talisman 2~4, 화염 도사 sorc_fire 4~6 |
+    | 역사 | 장정 brute_farmhand 2~4, 철갑 역사 brute_iron 5~6 |
+
+  - 적장 artId는 적 id와 같다: dengmao, chengyuanzhi, chieftain, zhangliang, gaosheng, zhangbao, zhangjue
+  - 연출: 공격 그림. 적장은 쿨타임 스킬에 특수기 그림. 맞으면 0.3초 움찔, 죽으면 쓰러진 그림 후 사라짐. 이야기 화면의 적장 초상화는 오른쪽에 선다.
 - **관절 애니메이션 (시험 중, v0.6~)**: 부위 그림(머리, 몸통, 치마, 위팔, 아래팔, 허벅지, 정강이, 칼)을 이어 붙여 각도로 움직인다. 타이틀의 "동작 방식" 버튼으로 프레임 그림 방식과 바꿔 볼 수 있다.
   - 부위 시트(3×3): 완성 모습, 머리, 몸통 / 치마, 위팔, 아래팔 / 바지, 정강이, 칼
   - 준비: `node tools/rig-prep.mjs assets/raw/<id>-parts.png public/art/<id>/rig`

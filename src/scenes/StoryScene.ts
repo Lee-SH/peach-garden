@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import type { Line } from '../data/scenarios';
 import { ENEMIES, GENERALS } from '../data/units';
-import { artKey, hasArt } from '../data/art';
+import { artKey, hasArt, hasPose } from '../data/art';
 import { button, COLOR, text, W } from '../ui/theme';
 
 export interface StoryData {
@@ -61,12 +61,17 @@ export class StoryScene extends Phaser.Scene {
       (this.speakerBadge.list[0] as Phaser.GameObjects.Arc).setFillStyle(ally ? COLOR.player : COLOR.boss);
       (this.speakerBadge.list[1] as Phaser.GameObjects.Text).setText((ally ?? foe)?.token ?? line.speaker[0]);
     }
-    const id = Object.keys(GENERALS).find((k) => GENERALS[k].name === line.speaker);
-    const showPortrait = !!id && hasArt(this, id);
+    // Portrait: allies stand on the left, enemy officers on the right (their art faces left)
+    const allyId = Object.keys(GENERALS).find((k) => GENERALS[k].name === line.speaker);
+    const foeId = Object.keys(ENEMIES).find((k) => ENEMIES[k].name === line.speaker);
+    const id = allyId ?? foeId;
+    const showPortrait = !!id && hasArt(this, id) && hasPose(id, 'portrait');
     this.portrait.setVisible(showPortrait);
     if (showPortrait) {
       this.portrait.setTexture(artKey(id, 'portrait'));
       this.portrait.setScale(170 / this.portrait.height);
+      if (allyId) this.portrait.setOrigin(0, 1).setX(20);
+      else this.portrait.setOrigin(1, 1).setX(W - 20);
     }
     this.body.setPosition(24, isNarration ? 424 : 464).setColor(isNarration ? COLOR.dim : COLOR.text);
     this.body.setText(line.text);
