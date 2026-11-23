@@ -57,9 +57,9 @@ const BACK = 0xb8b8c0;
 
 /**
  * The AI art is very big-headed; heads are drawn at this fraction (around the neck, so they stay
- * attached). Feedback: "머리가 몸에 비해 너무 크다 — 살짝만 줄이자".
+ * attached). Feedback: "머리가 몸에 비해 너무 크다" — 0.84, then "조금 더 작게" — 0.74.
  */
-export const HEAD_SCALE = 0.84;
+export const HEAD_SCALE = 0.74;
 /** head height above the neck joint at full size (rig units); used to keep the standing height right */
 const HEAD_ABOVE_NECK = 262;
 

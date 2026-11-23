@@ -25,7 +25,7 @@ import { drawField, FIELD_TOP, PANEL_Y } from '../ui/field';
 import { cellSpot } from '../core/formation';
 import { readPrefs, writePrefs } from '../ui/prefs';
 import { hasRig, Rig } from '../ui/rig';
-import { addSprite, artKey, ATTACK_POSES, hasArt, hasPose, playRun, setPose, SPRITE_H, type Pose } from '../data/art';
+import { addSprite, artKey, ATTACK_POSES, CHAR_SCALE, hasArt, hasPose, playRun, setPose, SPRITE_H, type Pose } from '../data/art';
 import { enemyHeight, pickEnemyArt } from '../data/enemyArt';
 import { briefingLine } from '../data/briefing';
 
@@ -587,23 +587,25 @@ export class BattleScene extends Phaser.Scene {
     let ring: View['ring'];
     let sprite: Phaser.GameObjects.Sprite | undefined;
     let fx: Phaser.GameObjects.Text;
+    // shadow and actor marker under a drawn figure follow the character size
+    const sr = Math.round(r * (f.side === 'player' ? CHAR_SCALE : CHAR_SCALE * 1.2));
     if (useRig) {
-      ring = this.add.ellipse(0, r + 2, r * 2 + 18, 14).setStrokeStyle(3, 0xffe08a).setVisible(false);
-      const shadow = this.add.ellipse(0, r + 2, r * 2, 8, 0x000000, 0.35);
+      ring = this.add.ellipse(0, r + 2, sr * 2 + 14, 11).setStrokeStyle(3, 0xffe08a).setVisible(false);
+      const shadow = this.add.ellipse(0, r + 2, sr * 2, 7, 0x000000, 0.35);
       // the rig is slimmer than the frame art, so it stands a little taller to read the same size
       rig = new Rig(this, f.id, SPRITE_H * 1.12);
       rig.root.setPosition(0, r + 4);
       rig.setSpeed(this.fast ? 2 : 1);
       // tap area in rig units (the rig root is scaled down)
       const k = 1 / rig.root.scaleY;
-      rig.root.setInteractive(new Phaser.Geom.Rectangle(-24 * k, -SPRITE_H * k, 48 * k, (SPRITE_H + 4) * k), Phaser.Geom.Rectangle.Contains);
+      rig.root.setInteractive(new Phaser.Geom.Rectangle(-20 * k, -SPRITE_H * k, 40 * k, (SPRITE_H + 4) * k), Phaser.Geom.Rectangle.Contains);
       fx = text(this, 0, r + 4 - SPRITE_H - 8, '', 11, '#e0d0ff').setOrigin(0.5);
       body = rig.root;
       parts = [ring, shadow, rig.root, bars, fx];
     } else if (art) {
       // Feet on the shadow; the actor marker is a gold ellipse on the ground
-      ring = this.add.ellipse(0, r + 2, r * 2 + 18, 14).setStrokeStyle(3, 0xffe08a).setVisible(false);
-      const shadow = this.add.ellipse(0, r + 2, r * 2, 8, 0x000000, 0.35);
+      ring = this.add.ellipse(0, r + 2, sr * 2 + 14, 11).setStrokeStyle(3, 0xffe08a).setVisible(false);
+      const shadow = this.add.ellipse(0, r + 2, sr * 2, 7, 0x000000, 0.35);
       sprite = addSprite(this, artId!, 0, r + 4, height);
       fx = text(this, 0, r + 4 - height - 8, '', 11, '#e0d0ff').setOrigin(0.5);
       body = sprite;

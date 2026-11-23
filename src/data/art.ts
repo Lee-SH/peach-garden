@@ -38,8 +38,11 @@ export function resolvePose(id: string, pose: Pose): Pose {
 }
 export const hasPose = (id: string, pose: Pose) => (ART_FILES[id] ?? []).includes(pose);
 
+import { CHAR_SCALE } from './scale';
+export { CHAR_SCALE };
+
 /** On-screen height of a standing general (px in the 360×640 game). */
-export const SPRITE_H = 76;
+export const SPRITE_H = Math.round(76 * CHAR_SCALE);
 const RUN_FPS = 14;
 /**
  * The AI-drawn run frames crouch and leap much more than a real stride (head moves ~25px).

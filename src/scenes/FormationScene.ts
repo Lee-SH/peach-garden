@@ -106,7 +106,7 @@ export class FormationScene extends Phaser.Scene {
     let hit: Phaser.Geom.Rectangle;
     if (readPrefs().rig && hasRig(this, id)) {
       // same cutout figure as in battle (idle breathing)
-      mark = this.add.ellipse(0, R + 2, R * 2 + 18, 14).setStrokeStyle(2, 0xffffff, 0);
+      mark = this.add.ellipse(0, R + 2, R * 2, 11).setStrokeStyle(2, 0xffffff, 0);
       const rig = new Rig(this, id, SPRITE_H * 1.12);
       rig.root.setPosition(0, R + 4);
       parts = [mark, shadow, rig.root, tag];

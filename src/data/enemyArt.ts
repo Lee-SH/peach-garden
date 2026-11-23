@@ -1,3 +1,5 @@
+import { CHAR_SCALE } from './scale';
+
 /**
  * Which picture an enemy uses. Common soldiers come in several looks that change as the chapter
  * goes on (ragtag peasants early, armoured troops late) and are mixed within a battle; officers
@@ -37,7 +39,8 @@ export const ENEMY_VARIANTS: Record<string, Variant[]> = {
 /** On-screen standing height (px) by enemy type; officers are bigger. */
 const HEIGHT: Record<string, number> = { rebel: 68, archer: 66, sorcerer: 68, brute: 82 };
 export const BOSS_HEIGHT = 84;
-export const enemyHeight = (type: string, isBoss: boolean) => (isBoss ? BOSS_HEIGHT : HEIGHT[type] ?? 68);
+/** sizes above are at CHAR_SCALE 1 (kept in step with the heroes) */
+export const enemyHeight = (type: string, isBoss: boolean) => Math.round((isBoss ? BOSS_HEIGHT : HEIGHT[type] ?? 68) * CHAR_SCALE);
 
 /**
  * Pick the look for one enemy of `type` in battle number `stage`, among the looks that exist.
