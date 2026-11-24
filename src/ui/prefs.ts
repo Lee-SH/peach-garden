@@ -31,3 +31,29 @@ export function writePrefs(p: Partial<Prefs>) {
     // preferences just won't persist
   }
 }
+
+// ---------------------------------------------------------------------------
+// Developer mode: shortcuts for testing later battles (jump anywhere, skip or win battles).
+// Turn on with ?dev=1 in the address (?dev=0 turns it off) or by tapping the version on the title 7 times.
+// ---------------------------------------------------------------------------
+const DEV_KEY = 'peach-garden.dev';
+
+export function isDev(): boolean {
+  try {
+    const q = new URLSearchParams(location.search).get('dev');
+    if (q === '1') localStorage.setItem(DEV_KEY, '1');
+    if (q === '0') localStorage.removeItem(DEV_KEY);
+    return localStorage.getItem(DEV_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+export function setDev(on: boolean) {
+  try {
+    if (on) localStorage.setItem(DEV_KEY, '1');
+    else localStorage.removeItem(DEV_KEY);
+  } catch {
+    // stays as it was
+  }
+}

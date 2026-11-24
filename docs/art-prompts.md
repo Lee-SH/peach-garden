@@ -18,6 +18,8 @@
 | 타이틀 그림 1장 | ✅ |
 | 이야기 그림 6장 (화마다) | ✅ |
 | 전투 상태 아이콘 4개 | ✅ |
+| **로딩 화면 그림 1장** | ⏳ 아래 G-1 |
+| **1화 첫 이야기 장면 그림 4장** | ⏳ 아래 G-2 — 한 번에 한 장씩 |
 | 전투 배경 6장 (화마다) | ✅ (Gemini는 지평선을 43% 높이에 그렸음 → `--horizon 0.435`로 자름) |
 
 ---
@@ -228,3 +230,55 @@ Bottom-right: BURN — an orange round badge with a flickering flame.
 ```
 
 받으면 Claude가 2×2로 잘라 `public/art/icons/atkUp.png`, `defDown.png`, `stun.png`, `burn.png`로 넣는다(`tools/cut-sheet.mjs <시트> <폴더> --grid 2x2 --max 128 atkUp defDown stun burn`).
+
+---
+
+## G. 로딩 화면과 1화 첫 이야기 장면
+
+### G-1. 로딩 화면 (새 대화창, 참고_유비·참고_장비 첨부)
+게임을 열면 가장 먼저 뜨는 그림이다. 아래쪽 20%에는 진행 막대가 올라간다.
+
+```
+Create an image. The attached images show our game's art style (hand-drawn chibi Three Kingdoms heroes): hand-inked lines with varied weight, flat 2-tone cel shading, limited and slightly muted palette. Draw a LOADING SCREEN illustration in the same style.
+
+A tall vertical image (portrait, 9:16). A quiet night in a peach orchard: a full moon, peach blossom branches framing the top, petals drifting down, and in the middle distance three small silhouettes of the sworn brothers standing together on a hill, seen from behind, looking toward a far-off land with faint smoke on the horizon. Calm and evocative.
+
+The bottom 20% is plain dark ground (a loading bar goes there). No text, no letters, no frame. Generate only ONE image.
+```
+받으면 Claude가 `public/art/scenes/splash.png`로 넣는다.
+
+### G-2. 1화 첫 이야기 장면 4장 (새 대화창, 참고_유비·참고_장비 첨부 — 첫 장만 이 문구, 나머지는 같은 대화창에서 하나씩)
+이야기 화면 위쪽에 깔린다(아래 45%는 대사 상자에 가려짐). 대사가 넘어가면 그림이 바뀐다.
+
+**① 장각의 봉기** (첫 대사: 장각이 난을 일으킴)
+```
+Create an image. The attached images show our game's art style (hand-drawn chibi Three Kingdoms heroes): hand-inked lines with varied weight, flat 2-tone cel shading, limited and slightly muted palette. Now draw a STORY ILLUSTRATION in the same style.
+
+A tall vertical image (portrait, 9:16). Put the whole scene in the TOP 55% of the image; the bottom 45% fades into plain dark ground (a dialogue box covers it).
+
+Scene: The year 184 AD. Zhang Jue, an old Taoist mystic in a golden-yellow robe and tall yellow hat, stands on a stone altar at night raising his staff to a yellow-tinted sky, while a huge crowd of peasants below lifts torches and ties yellow cloth around their heads. A great rebellion is beginning.
+
+No text, no letters, no writing on banners, no frame. Generate only ONE image.
+```
+
+**② 의병 모집의 방** (누런 두건이 번지고, 탁현에 방이 붙음)
+```
+Same style and the same layout as the previous story illustration (scene in the top 55%, bottom 45% plain dark ground). Only the scene changes:
+The gate of Zhuo county town by day: a large official recruitment notice pasted on the town wall (its writing is just unreadable scribbles), villagers crowding around it anxiously, and far away on the horizon columns of smoke and tiny yellow banners of the rebels spreading across the land.
+No text, no readable letters, no frame. Generate only ONE image.
+```
+
+**③ 유비의 한숨** (유비의 혼잣말)
+```
+Same style and the same layout as the previous story illustration (scene in the top 55%, bottom 45% plain dark ground). Only the scene changes:
+Liu Bei (gentle young man with a small topknot crown and a thin beard, in a modest green robe) stands alone in front of the recruitment notice on the town wall in the late afternoon, shoulders slumped, sighing. Beside him lie the straw mats and straw sandals he sells. A lonely, quiet mood.
+No text, no readable letters, no frame. Generate only ONE image.
+```
+
+**④ 세 사람의 만남** (장비가 부르고, 관우가 함께함)
+```
+Same style and the same layout as the previous story illustration (scene in the top 55%, bottom 45% plain dark ground). Only the scene changes:
+In front of the same town wall: big Zhang Fei (wild black beard, dark armour) slaps Liu Bei on the shoulder with a booming laugh, while tall Guan Yu (red face, very long black beard, green robe and green cap) arrives pushing a cart and looks on with a calm smile. The beginning of a friendship.
+No text, no readable letters, no frame. Generate only ONE image.
+```
+받으면 Claude가 `public/art/scenes/ch1-1-uprising.png`, `ch1-1-notice.png`, `ch1-1-sigh.png`, `ch1-1-meet.png`로 넣는다. 그다음 대사(복숭아 동산 맹세)는 타이틀 그림, 마지막(출정)은 1화 그림을 쓴다.

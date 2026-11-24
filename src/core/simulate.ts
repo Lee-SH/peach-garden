@@ -85,3 +85,42 @@ export function autoCampaign(formation: string[] | Positions, seed: number, maxA
   }
   return { log, finished: true };
 }
+
+/**
+ * Win the save's current battle on auto (for the developer menu): plays it like autoCampaign does,
+ * applies levels and loot and moves on to the next battle. Fallen generals are brought back so a
+ * test run always has the whole party. If the battle can't be won in a few tries, it is skipped
+ * with the loot granted anyway.
+ */
+export function devWinCurrent(save: CampaignSave, seed = 1): CampaignSave {
+  const sc = SCENARIOS[save.scenarioId];
+  if (!sc) return save;
+  let next = save;
+  let run: BattleRun | null = null;
+  for (let attempt = 0; attempt < 4; attempt++) {
+    run = autoBattle(sc, save, (seed + attempt) * 7919);
+    if (run.victory) break;
+  }
+  if (run?.victory) {
+    const merit: Record<string, number> = {};
+    for (const f of run.party) if (!f.dead) gainXp(f, (merit[f.id] = battleXp(f)));
+    next = applyBattleResult(save, run.party, sc.next);
+    next = grantLoot(next, scenarioLoot(sc), merit);
+  } else {
+    next = grantLoot(applyBattleResult(save, [], sc.next), scenarioLoot(sc));
+  }
+  next = autoRefine(next, Object.keys(next.roster));
+  const roster = Object.fromEntries(Object.entries(next.roster).map(([id, r]) => [id, { ...r, alive: true }]));
+  return { ...next, roster };
+}
+
+/** A save standing just before battle `targetId`, reached by winning every earlier battle on auto. */
+export function devSaveAt(targetId: string, seed = 1): CampaignSave {
+  let save = newCampaign();
+  for (let i = 0; i < SCENARIO_ORDER.length && save.scenarioId !== targetId; i++) {
+    const before = save.scenarioId;
+    save = devWinCurrent(save, seed + i);
+    if (save.scenarioId === before) break; // last battle reached
+  }
+  return save;
+}

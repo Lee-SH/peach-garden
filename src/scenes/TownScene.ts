@@ -1,7 +1,9 @@
 import Phaser from 'phaser';
 import { CAV_ATK, CAV_SPD, INF_DEF, INF_HP } from '../core/army';
 import { unassigned } from '../core/campaign';
-import { loadSave, type CampaignSave } from '../core/save';
+import { loadSave, writeSave, type CampaignSave } from '../core/save';
+import { devWinCurrent } from '../core/simulate';
+import { isDev } from '../ui/prefs';
 import { artKey, hasArt, hasPose } from '../data/art';
 import { TOWN_FILES } from '../data/artManifest';
 import { ITEM_ORDER, ITEMS } from '../data/items';
@@ -66,6 +68,11 @@ export class TownScene extends Phaser.Scene {
     text(this, 14, 10, `${town.place} 진영`, 20, COLOR.gold);
     text(this, 14, 40, town.next ? `다음 전투 · ${town.next.label}` : '1장 완결', 12, COLOR.dim);
     button(this, W - 46, 24, 76, 30, '타이틀', () => this.scene.start('Title'));
+    if (isDev() && town.next)
+      button(this, W - 46, 58, 76, 24, '⏭ 건너뛰기', () => {
+        writeSave(devWinCurrent(this.save));
+        this.scene.restart();
+      });
 
     // Liu Bei's line
     this.add.rectangle(W / 2, 74, W - 16, 34, 0x14110e, 0.7).setOrigin(0.5, 0).setStrokeStyle(1, COLOR.panelLine);

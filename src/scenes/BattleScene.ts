@@ -23,7 +23,7 @@ import { button, type Button, COLOR, FONT, H, hd, RES, setButtonLabel, text, W }
 import type { ResultData } from './ResultScene';
 import { drawField, FIELD_TOP, PANEL_Y, preloadField } from '../ui/field';
 import { cellSpot } from '../core/formation';
-import { readPrefs, SPEEDS, writePrefs } from '../ui/prefs';
+import { isDev, readPrefs, SPEEDS, writePrefs } from '../ui/prefs';
 import { hasRig, Rig } from '../ui/rig';
 import { addSprite, artKey, ATTACK_POSES, CHAR_SCALE, hasArt, hasPose, playRun, setPose, SPRITE_H, type Pose } from '../data/art';
 import { enemyHeight, pickEnemyArt } from '../data/enemyArt';
@@ -797,6 +797,19 @@ export class BattleScene extends Phaser.Scene {
     this.speedBtn = button(this, W - 32, 22, 50, 30, 'x1', () => this.toggleSpeed());
     this.autoBtn.container.setDepth(6);
     this.speedBtn.container.setDepth(6);
+    if (isDev()) {
+      // developer shortcut: win the whole battle now (every group), with the usual rewards
+      const win = button(this, W - 32, 62, 50, 24, '승리', () => {
+        if (this.over) return;
+        this.wave = this.sc.waves.length - 1;
+        for (const f of this.b.fighters) if (f.side === 'enemy') {
+          f.hp = 0;
+          f.dead = true;
+        }
+        this.finish(true);
+      });
+      win.container.setDepth(6);
+    }
   }
 
   private createPanel() {

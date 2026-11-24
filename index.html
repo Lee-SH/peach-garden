@@ -9,9 +9,13 @@
     <style>
       html, body { margin: 0; height: 100%; background: #14110e; overflow: hidden; touch-action: none; overscroll-behavior: none; }
       #game { width: 100%; height: 100%; }
+      /* shown until the game's own loading screen takes over */
+      #boot { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; color: #a8977a; font: 14px "Apple SD Gothic Neo", "Noto Sans KR", sans-serif; pointer-events: none; }
+      #game canvas ~ #boot, body.ready #boot { display: none; }
     </style>
   </head>
   <body>
+    <div id="boot">도원 · 불러오는 중…</div>
     <div id="game"></div>
     <script type="module" src="/src/main.ts"></script>
   </body>

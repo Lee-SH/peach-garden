@@ -19,6 +19,9 @@ export class StoryScene extends Phaser.Scene {
   private speakerName!: Phaser.GameObjects.Text;
   private body!: Phaser.GameObjects.Text;
   private portrait!: Phaser.GameObjects.Image;
+  private bgImg?: Phaser.GameObjects.Image;
+  private bgName?: string;
+  private heading: Phaser.GameObjects.GameObject[] = [];
 
   constructor() {
     super('Story');
@@ -31,18 +34,22 @@ export class StoryScene extends Phaser.Scene {
 
   create() {
     hd(this);
-    const pic = this.story.bg && [`scene-${this.story.bg}`, `town-${this.story.bg}`].find((k) => this.textures.exists(k));
+    // pictures: the story's own, and any line can switch to another (crossfade)
+    this.bgImg = undefined;
+    this.bgName = undefined;
+    const names = [this.story.bg, ...this.story.lines.map((l) => l.bg)];
+    const pic = names.some((n) => this.picKey(n));
+    this.setBg([this.story.lines[0]?.bg, this.story.bg].find((n) => this.picKey(n)));
     if (pic) {
-      const bg = this.add.image(W / 2, 0, pic).setOrigin(0.5, 0);
-      bg.setScale(Math.max(W / bg.width, H / bg.height));
       // darken a little, and fade to black behind the dialogue box
       this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.15);
       this.add.graphics().fillGradientStyle(0x14110e, 0x14110e, 0x14110e, 0x14110e, 0, 0, 1, 1).fillRect(0, 300, W, 100);
       this.add.rectangle(W / 2, 400, W, H - 400, 0x14110e).setOrigin(0.5, 0);
     }
+    this.heading = [];
     if (this.story.heading) {
-      if (pic) this.add.rectangle(W / 2, 150, W, 84, 0x000000, 0.55);
-      text(this, W / 2, 150, this.story.heading, 22, COLOR.gold).setOrigin(0.5).setAlign('center');
+      if (pic) this.heading.push(this.add.rectangle(W / 2, 150, W, 84, 0x000000, 0.55));
+      this.heading.push(text(this, W / 2, 150, this.story.heading, 22, COLOR.gold).setOrigin(0.5).setAlign('center'));
     }
 
     const boxY = 400;
@@ -63,8 +70,30 @@ export class StoryScene extends Phaser.Scene {
     this.show();
   }
 
+  private picKey(name?: string) {
+    return name ? [`scene-${name}`, `town-${name}`].find((k) => this.textures.exists(k)) : undefined;
+  }
+
+  /** Show picture `name` behind everything, crossfading from the previous one. */
+  private setBg(name?: string) {
+    const key = this.picKey(name);
+    if (!key || name === this.bgName) return;
+    this.bgName = name;
+    const img = this.add.image(W / 2, 0, key).setOrigin(0.5, 0).setDepth(-10);
+    img.setScale(Math.max(W / img.width, H / img.height));
+    const old = this.bgImg;
+    this.bgImg = img;
+    if (old) {
+      img.setAlpha(0);
+      this.tweens.add({ targets: img, alpha: 1, duration: 450, onComplete: () => old.destroy() });
+    }
+  }
+
   private show() {
     const line = this.story.lines[this.index];
+    if (line.bg) this.setBg(line.bg);
+    // the chapter heading belongs to the opening picture; it fades once the story moves on
+    if (this.index === 1 && this.heading.length) this.tweens.add({ targets: this.heading, alpha: 0, duration: 400 });
     const isNarration = !line.speaker;
     this.speakerBadge.setVisible(!isNarration);
     this.speakerName.setText(line.speaker);

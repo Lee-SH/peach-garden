@@ -8,6 +8,8 @@ import { ENEMIES, GENERALS, makeFighter } from './units';
 export interface Line {
   speaker: string; // '' = narration
   text: string;
+  /** switch the story picture from this line on (public/art/scenes/<bg>.png); missing pictures are skipped */
+  bg?: string;
 }
 
 export interface Wave {
@@ -41,14 +43,14 @@ export const SCENARIOS: Record<string, Scenario> = {
     title: '탁현 출정',
     objectiveText: `승리: 4개 무리 격파 (등무, 정원지)\n${LOSE}`,
     intro: [
-      { speaker: '', text: '중평 원년(184년). 태평도의 장각이 "창천이 이미 죽었으니 황천이 일어서리라"를 외치며 난을 일으켰다.' },
-      { speaker: '', text: '누런 두건을 두른 무리가 들불처럼 번져 나가고, 유주 탁현에도 의병을 모집하는 방이 붙었다.' },
-      { speaker: '유비', text: '나라가 이 지경인데, 돗자리나 짜는 이 몸으로는 아무것도 할 수 없구나…' },
-      { speaker: '장비', text: '대장부가 나라를 위해 힘쓰지 않고 어찌 한숨만 쉬시오! 내게 재산이 좀 있으니 함께 의병을 일으킵시다!' },
+      { speaker: '', bg: 'ch1-1-uprising', text: '중평 원년(184년). 태평도의 장각이 "창천이 이미 죽었으니 황천이 일어서리라"를 외치며 난을 일으켰다.' },
+      { speaker: '', bg: 'ch1-1-notice', text: '누런 두건을 두른 무리가 들불처럼 번져 나가고, 유주 탁현에도 의병을 모집하는 방이 붙었다.' },
+      { speaker: '유비', bg: 'ch1-1-sigh', text: '나라가 이 지경인데, 돗자리나 짜는 이 몸으로는 아무것도 할 수 없구나…' },
+      { speaker: '장비', bg: 'ch1-1-meet', text: '대장부가 나라를 위해 힘쓰지 않고 어찌 한숨만 쉬시오! 내게 재산이 좀 있으니 함께 의병을 일으킵시다!' },
       { speaker: '관우', text: '두 분의 뜻이 그러하다면, 이 관모도 기꺼이 함께하겠소.' },
-      { speaker: '', text: '복숭아꽃이 만개한 장비의 집 뒤뜰. 세 사람은 하늘과 땅에 제를 올렸다.' },
+      { speaker: '', bg: 'title', text: '복숭아꽃이 만개한 장비의 집 뒤뜰. 세 사람은 하늘과 땅에 제를 올렸다.' },
       { speaker: '유비', text: '비록 한날한시에 태어나지는 못했으나, 한날한시에 죽기를 원하노라.' },
-      { speaker: '', text: '의형제가 된 세 사람은 의용군 오백을 이끌고 출정했다. 황건적 장수 정원지와 부장 등무가 오만 대군을 몰고 온다.' },
+      { speaker: '', bg: 'ch1-1', text: '의형제가 된 세 사람은 의용군 오백을 이끌고 출정했다. 황건적 장수 정원지와 부장 등무가 오만 대군을 몰고 온다.' },
       { speaker: '관우', text: '선봉에 서는 자가 가장 많이 싸우고 가장 많이 다치오. 누구를 앞세울지 잘 정하시오.' },
     ],
     outro: [

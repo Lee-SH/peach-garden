@@ -2,25 +2,12 @@ import Phaser from 'phaser';
 import { loadSave, newCampaign, writeSave, type CampaignSave } from '../core/save';
 import { SCENARIOS } from '../data/scenarios';
 import { townOf } from '../data/town';
-import { SCENE_FILES } from '../data/artManifest';
-import { preloadArt } from '../data/art';
-import { preloadRigs } from '../ui/rig';
-import { preloadIcons } from '../ui/icons';
-import { preloadTown } from './TownScene';
 import { button, type Button, COLOR, H, hd, setButtonLabel, text, W } from '../ui/theme';
-import { readPrefs, writePrefs } from '../ui/prefs';
+import { isDev, readPrefs, setDev, writePrefs } from '../ui/prefs';
 
 export class TitleScene extends Phaser.Scene {
   constructor() {
     super('Title');
-  }
-
-  preload() {
-    preloadArt(this);
-    preloadRigs(this);
-    preloadIcons(this);
-    preloadTown(this);
-    for (const name of SCENE_FILES) this.load.image(`scene-${name}`, `${import.meta.env.BASE_URL}art/scenes/${name}.png`);
   }
 
   create() {
@@ -56,7 +43,17 @@ export class TitleScene extends Phaser.Scene {
       setButtonLabel(anim, animLabel());
     });
 
-    text(this, W / 2, H - 30, 'v0.10 · 1장 황건적의 난 (6화)', 12, COLOR.dim).setOrigin(0.5);
+    // tap the version 7 times to turn developer mode on or off
+    let taps = 0;
+    text(this, W / 2, H - 30, 'v0.11 · 1장 황건적의 난 (6화)', 12, COLOR.dim)
+      .setOrigin(0.5)
+      .setInteractive()
+      .on('pointerup', () => {
+        if (++taps < 7) return;
+        setDev(!isDev());
+        this.scene.restart();
+      });
+    if (isDev()) button(this, W - 56, 26, 96, 30, '개발 모드', () => this.scene.start('Dev'));
   }
 
   private drawPetals() {
