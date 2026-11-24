@@ -54,6 +54,9 @@ export class TownScene extends Phaser.Scene {
     if (pic) {
       const bg = this.add.image(W / 2, H / 2, pic);
       bg.setScale(Math.max(W / bg.width, H / bg.height));
+      // the pictures end in a plain strip at the bottom: fade it into the party bar
+      this.add.graphics().fillGradientStyle(0x14110e, 0x14110e, 0x14110e, 0x14110e, 0, 0, 1, 1).fillRect(0, H - 150, W, 60);
+      this.add.rectangle(W / 2, H - 90, W, 40, 0x14110e).setOrigin(0.5, 0);
     } else {
       this.drawVillage(town.place);
     }
