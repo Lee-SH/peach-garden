@@ -32,4 +32,4 @@ export const TOWN_FILES: string[] = ['guangzong', 'qingzhou', 'quyang', 'tavern'
 export const SCENE_FILES: string[] = ['ch1-1', 'ch1-2', 'ch1-3', 'ch1-4', 'ch1-5', 'ch1-6', 'title'];
 
 /** Battle backgrounds under public/art/battle/ (<scenarioId>-sky.png, <scenarioId>-ground.png). */
-export const BATTLE_FILES: string[] = [];
+export const BATTLE_FILES: string[] = ['ch1-1-ground', 'ch1-1-sky', 'ch1-2-ground', 'ch1-2-sky', 'ch1-3-ground', 'ch1-3-sky', 'ch1-4-ground', 'ch1-4-sky', 'ch1-5-ground', 'ch1-5-sky', 'ch1-6-ground', 'ch1-6-sky'];

@@ -27,13 +27,16 @@ export function drawField(scene: Phaser.Scene, scenarioId?: string) {
   if (scenarioId && scene.textures.exists(layerKey(scenarioId, 'sky')) && scene.textures.exists(layerKey(scenarioId, 'ground'))) {
     const skyH = GROUND_Y - FIELD_TOP;
     const groundH = PANEL_Y - GROUND_Y;
-    const fit = (t: Phaser.GameObjects.TileSprite, h: number) => {
-      const src = scene.textures.get(t.texture.key).getSourceImage();
-      t.setTileScale(h / src.height);
+    // scale the picture to the band height (measure the loaded picture: a TileSprite's own texture
+    // is a band-sized copy, so its size says nothing about the picture)
+    const layer = (part: 'sky' | 'ground', y: number, h: number) => {
+      const key = layerKey(scenarioId, part);
+      const t = scene.add.tileSprite(0, y, W, h, key).setOrigin(0);
+      t.setTileScale(h / scene.textures.get(key).getSourceImage().height);
       return t;
     };
-    const far = fit(scene.add.tileSprite(0, FIELD_TOP, W, skyH, layerKey(scenarioId, 'sky')).setOrigin(0), skyH);
-    const ground = fit(scene.add.tileSprite(0, GROUND_Y, W, groundH, layerKey(scenarioId, 'ground')).setOrigin(0), groundH);
+    const far = layer('sky', FIELD_TOP, skyH);
+    const ground = layer('ground', GROUND_Y, groundH);
     return { far, near: null, ground };
   }
   makeTextures(scene);
