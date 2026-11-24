@@ -17,6 +17,7 @@
 | 주막 안 그림 | ✅ |
 | 타이틀 그림 1장 | ✅ |
 | 이야기 그림 6장 (화마다) | ✅ |
+| **전투 상태 아이콘 4개** | ⏳ 아래 F |
 | 전투 배경 6장 (화마다) | ✅ (Gemini는 지평선을 43% 높이에 그렸음 → `--horizon 0.435`로 자름) |
 
 ---
@@ -208,3 +209,22 @@ No text, no letters, no frame. Generate only ONE image.
 ```
 
 받으면 Claude가 `public/art/battle/ch1-N-sky.png`, `-ground.png`로 만든다. 그림이 없는 화는 지금처럼 도형 배경으로 나온다.
+
+---
+
+## F. 전투 상태 아이콘 — 4개 (2×2 한 장)
+
+전투 중 장수 머리 위에 아주 작게(약 19px) 뜬다. 지금은 색 동그라미에 한자(攻 防 暈 火)와 화살표로 그린 임시 아이콘이다.
+
+```
+Create an image. The attached images show our game's art style (hand-drawn chibi Three Kingdoms heroes): hand-inked lines with varied weight, flat 2-tone cel shading, limited and slightly muted palette. Now make STATUS EFFECT ICONS for the battle screen in exactly this style.
+
+Make ONE sheet laid out as a 2×2 grid of 4 equal square cells. Each icon is a single round badge-like emblem, centered in its own cell with generous empty space around it; nothing crosses into another cell. All the same size. Very bold and simple — they are shown tiny (about 20 pixels), so use thick outlines, strong colours and no fine detail. Pure flat white background (#FFFFFF), no shadow, no frames, no cell borders, no text or letters anywhere. Generate only ONE image.
+
+Top-left: ATTACK UP — a red round badge with a crossed sword and a bright green upward arrow.
+Top-right: DEFENSE DOWN — a blue round badge with a cracked shield and a red downward arrow.
+Bottom-left: STUN — a purple round badge with a dizzy swirl and little yellow stars.
+Bottom-right: BURN — an orange round badge with a flickering flame.
+```
+
+받으면 Claude가 2×2로 잘라 `public/art/icons/atkUp.png`, `defDown.png`, `stun.png`, `burn.png`로 넣는다(`tools/cut-sheet.mjs <시트> <폴더> --grid 2x2 --max 128 atkUp defDown stun burn`).

@@ -29,9 +29,9 @@ import { addSprite, artKey, ATTACK_POSES, CHAR_SCALE, hasArt, hasPose, playRun, 
 import { enemyHeight, pickEnemyArt } from '../data/enemyArt';
 import { briefingLine } from '../data/briefing';
 import { isShout, playFx, SKILL_FX } from '../ui/fx';
+import { icon } from '../ui/icons';
 
 
-const EFFECT_LABEL: Record<EffectType, string> = { atkUp: '공↑', defDown: '방↓', stun: '기절', burn: '화상' };
 
 
 interface View {
@@ -52,7 +52,9 @@ interface View {
   running?: boolean;
   ring: Phaser.GameObjects.Shape;
   bars: Phaser.GameObjects.Graphics;
-  fx: Phaser.GameObjects.Text;
+  /** status icons above the head (rebuilt when the effects change) */
+  fx: Phaser.GameObjects.Container;
+  fxSig?: string;
   home: { x: number; y: number };
 }
 
@@ -614,6 +616,27 @@ export class BattleScene extends Phaser.Scene {
   // Views
   // ---------------------------------------------------------------------------
 
+  /** Status icons in a row above the head, each with the turns left. */
+  private drawStatus(v: View, f: Fighter) {
+    const sig = f.effects.map((e) => `${e.type}${e.turns}`).join(',');
+    if (sig === v.fxSig) return;
+    v.fxSig = sig;
+    v.fx.removeAll(true);
+    const size = 19;
+    const gap = 3;
+    f.effects.forEach((e, i) => {
+      const x = (i - (f.effects.length - 1) / 2) * (size + gap);
+      v.fx.add(icon(this, e.type as EffectType, x, 0, size));
+      if (e.turns > 0)
+        v.fx.add(
+          this.add
+            .text(x + size / 2 - 1, size / 2 - 1, `${e.turns}`, { fontFamily: FONT, fontSize: '10px', color: '#ffffff', fontStyle: 'bold', resolution: RES })
+            .setOrigin(0.5)
+            .setStroke('#000000', 3),
+        );
+    });
+  }
+
   private createView(f: Fighter) {
     const fill = f.side === 'player' ? COLOR.player : f.isBoss ? COLOR.boss : COLOR.enemy;
     const r = radius(f);
@@ -632,7 +655,7 @@ export class BattleScene extends Phaser.Scene {
     let body: View['body'];
     let ring: View['ring'];
     let sprite: Phaser.GameObjects.Sprite | undefined;
-    let fx: Phaser.GameObjects.Text;
+    let fx: Phaser.GameObjects.Container;
     // shadow and actor marker under a drawn figure follow the character size
     const sr = Math.round(r * (f.side === 'player' ? CHAR_SCALE : CHAR_SCALE * 1.2));
     if (useRig) {
@@ -645,7 +668,7 @@ export class BattleScene extends Phaser.Scene {
       // tap area in rig units (the rig root is scaled down)
       const k = 1 / rig.root.scaleY;
       rig.root.setInteractive(new Phaser.Geom.Rectangle(-20 * k, -SPRITE_H * k, 40 * k, (SPRITE_H + 4) * k), Phaser.Geom.Rectangle.Contains);
-      fx = text(this, 0, r + 4 - SPRITE_H - 8, '', 11, '#e0d0ff').setOrigin(0.5);
+      fx = this.add.container(0, r + 4 - SPRITE_H - 10);
       body = rig.root;
       parts = [ring, shadow, rig.root, bars, fx];
     } else if (art) {
@@ -653,7 +676,7 @@ export class BattleScene extends Phaser.Scene {
       ring = this.add.ellipse(0, r + 2, sr * 2 + 14, 11).setStrokeStyle(3, 0xffe08a).setVisible(false);
       const shadow = this.add.ellipse(0, r + 2, sr * 2, 7, 0x000000, 0.35);
       sprite = addSprite(this, artId!, 0, r + 4, height);
-      fx = text(this, 0, r + 4 - height - 8, '', 11, '#e0d0ff').setOrigin(0.5);
+      fx = this.add.container(0, r + 4 - height - 10);
       body = sprite;
       parts = [ring, shadow, sprite, bars, fx];
     } else {
@@ -663,7 +686,7 @@ export class BattleScene extends Phaser.Scene {
       const tok = this.add
         .text(0, 0, f.token, { fontFamily: FONT, fontSize: f.isBoss ? '24px' : '19px', color: f.side === 'player' ? '#ffffff' : '#1b1306', fontStyle: 'bold', resolution: RES })
         .setOrigin(0.5);
-      fx = text(this, 0, -r - 14, '', 11, '#e0d0ff').setOrigin(0.5);
+      fx = this.add.container(0, -r - 14);
       body = circle;
       parts = [shadow, ring, circle, tok, bars, fx];
     }
@@ -708,7 +731,7 @@ export class BattleScene extends Phaser.Scene {
         v.bars.fillStyle(0x000000, 0.6).fillRect(-w / 2, r + 14, w, 3);
         v.bars.fillStyle(f.morale >= 100 ? 0xffd23b : 0xd9a441, 1).fillRect(-w / 2, r + 14, (w * f.morale) / 100, 3);
       }
-      v.fx.setText(f.effects.map((e) => EFFECT_LABEL[e.type]).join(' '));
+      this.drawStatus(v, f);
       if (v.troopText && f.troops) v.troopText.setText(`병 ${f.troops.inf + f.troops.cav}`);
       v.ring.setVisible(f === actor);
       const s = this.selectedSkill;
