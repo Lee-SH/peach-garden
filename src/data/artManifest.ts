@@ -16,6 +16,7 @@ export const ART_FILES: Record<string, string[]> = {
   "rebel_farmer": ['attack', 'down', 'hurt', 'idle'],
   "sorc_fire": ['attack', 'down', 'hurt', 'idle'],
   "sorc_talisman": ['attack', 'down', 'hurt', 'idle'],
+  "zhangbao": ['attack', 'idle', 'portrait', 'special'],
   "zhangfei": ['attack', 'idle', 'portrait', 'ult'],
   "zhangliang": ['attack', 'idle', 'portrait', 'special'],
 };
