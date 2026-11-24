@@ -45,12 +45,24 @@ export function townOf(save: CampaignSave): TownState {
   };
 }
 
+/** File name (public/art/town/<key>.png) for each camp's picture; bg.png is used when one is missing. */
+export const PLACE_KEY: Record<string, string> = {
+  탁현: 'zhuoxian',
+  청주: 'qingzhou',
+  광종: 'guangzong',
+  영천: 'yingchuan',
+  곡양: 'quyang',
+};
+
 /**
- * Spots on the town map (world coordinates, 360×640). A town picture made later should put its
- * buildings at these places: 군막 upper-left, 창고 right-middle, the road out of town lower-right.
+ * Spots on the town map (world coordinates, 360×640). Town pictures should put their buildings at
+ * these places (see docs/art-prompts.md): 군막 upper-left, 대장간 upper-right, 주막 left-middle,
+ * 창고 right-middle, the gate out of town lower-right.
  */
 export const SPOTS = {
-  camp: { x: 100, y: 236, label: '군영', sub: '장수 · 병력 · 장비' },
-  store: { x: 262, y: 340, label: '창고', sub: '재련 도구 · 남은 병력' },
-  gate: { x: 270, y: 500, label: '출진', sub: '' },
+  camp: { x: 92, y: 212, label: '군영', sub: '장수 · 병력' },
+  smithy: { x: 268, y: 214, label: '대장간', sub: '무기 · 갑옷 강화' },
+  tavern: { x: 92, y: 384, label: '주막', sub: '이야기' },
+  store: { x: 268, y: 362, label: '창고', sub: '도구 · 남은 병력' },
+  gate: { x: 268, y: 522, label: '출진', sub: '' },
 } as const;

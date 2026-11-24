@@ -5,18 +5,28 @@ import { loadSave, type CampaignSave } from '../core/save';
 import { artKey, hasArt, hasPose } from '../data/art';
 import { TOWN_FILES } from '../data/artManifest';
 import { ITEM_ORDER, ITEMS } from '../data/items';
-import { SPOTS, townOf } from '../data/town';
+import { PLACE_KEY, SPOTS, townOf } from '../data/town';
+import { newTalks } from '../data/tavern';
 import { GENERALS } from '../data/units';
 import { icon } from '../ui/icons';
 import { button, COLOR, FONT, H, hd, RES, text, W } from '../ui/theme';
 import { startScenario } from './TitleScene';
 
-const BG_KEY = 'town-bg';
+const bgKey = (name: string) => `town-${name}`;
 
 export function preloadTown(scene: Phaser.Scene) {
-  // one picture for every camp for now: public/art/town/bg.png (360×640 layout, see SPOTS)
-  if (TOWN_FILES.includes('bg')) scene.load.image(BG_KEY, `${import.meta.env.BASE_URL}art/town/bg.png`);
+  // public/art/town/<place>.png per camp, bg.png for any camp without its own (360×640 layout, see SPOTS)
+  for (const name of TOWN_FILES) scene.load.image(bgKey(name), `${import.meta.env.BASE_URL}art/town/${name}.png`);
 }
+
+/** Colours of the drawn placeholder town, by camp. */
+const LOOK: Record<string, { sky: [number, number]; ground: number; hill: number; extra?: 'wall' | 'tents' | 'burnt' | 'gloom' }> = {
+  탁현: { sky: [0x3b5a86, 0xc9b48a], ground: 0x6f7f45, hill: 0x51653f },
+  청주: { sky: [0x46628c, 0xd2c09a], ground: 0x75824a, hill: 0x5a6a44, extra: 'wall' },
+  광종: { sky: [0x55617a, 0xc8b07c], ground: 0x7d7a48, hill: 0x5f6040, extra: 'tents' },
+  영천: { sky: [0x6a4a44, 0xd09a6a], ground: 0x6a6a3e, hill: 0x4f4a34, extra: 'burnt' },
+  곡양: { sky: [0x2a2c44, 0x7a6e8a], ground: 0x5a6644, hill: 0x3f4a3a, extra: 'gloom' },
+};
 
 /**
  * 진영: the town map between battles. 군영 (generals, soldiers, gear), 창고 (tools and spare soldiers)
@@ -40,11 +50,12 @@ export class TownScene extends Phaser.Scene {
     this.save = save;
     const town = townOf(save);
 
-    if (this.textures.exists(BG_KEY)) {
-      const bg = this.add.image(W / 2, H / 2, BG_KEY);
+    const pic = [bgKey(PLACE_KEY[town.place] ?? ''), bgKey('bg')].find((k) => this.textures.exists(k));
+    if (pic) {
+      const bg = this.add.image(W / 2, H / 2, pic);
       bg.setScale(Math.max(W / bg.width, H / bg.height));
     } else {
-      this.drawVillage();
+      this.drawVillage(town.place);
     }
 
     // header
@@ -59,6 +70,9 @@ export class TownScene extends Phaser.Scene {
 
     // spots
     this.spot(SPOTS.camp, () => this.scene.start('Camp', { back: { key: 'Town' } }));
+    this.spot(SPOTS.smithy, () => this.scene.start('Camp', { back: { key: 'Town' }, mode: 'smithy' }));
+    const fresh = newTalks(save).length;
+    this.spot({ ...SPOTS.tavern, sub: fresh ? `새 이야기 ${fresh}` : SPOTS.tavern.sub }, () => this.scene.start('Tavern'), true, false, fresh > 0);
     this.spot(SPOTS.store, () => this.openStore());
     const gate = town.next
       ? { ...SPOTS.gate, sub: town.next.label }
@@ -71,7 +85,7 @@ export class TownScene extends Phaser.Scene {
   // ---------------------------------------------------------------------------
 
   /** A labelled, tappable place with a bobbing marker above it. */
-  private spot(s: { x: number; y: number; label: string; sub: string }, on: () => void, enabled = true, main = false) {
+  private spot(s: { x: number; y: number; label: string; sub: string }, on: () => void, enabled = true, main = false, alert = false) {
     const zone = this.add.zone(s.x, s.y - 10, 120, 110).setInteractive({ useHandCursor: enabled });
     const plateY = s.y + 40;
     const w = main ? 150 : 128;
@@ -79,9 +93,9 @@ export class TownScene extends Phaser.Scene {
       .rectangle(s.x, plateY, w, s.sub ? 40 : 26, main ? 0x5a2418 : 0x2a2119, 0.92)
       .setStrokeStyle(2, main ? 0xffd23b : COLOR.panelLine);
     text(this, s.x, plateY - (s.sub ? 9 : 0), main && enabled ? `${s.label} ▶` : s.label, 15, COLOR.gold).setOrigin(0.5);
-    if (s.sub) text(this, s.x, plateY + 10, s.sub, 10, COLOR.dim).setOrigin(0.5);
+    if (s.sub) text(this, s.x, plateY + 10, s.sub, 10, alert ? '#ff9a7a' : COLOR.dim).setOrigin(0.5);
     if (enabled) {
-      const mark = this.add.triangle(s.x, s.y - 62, 0, 0, 14, 0, 7, 10, 0xffd23b).setStrokeStyle(1, 0x000000);
+      const mark = this.add.triangle(s.x, s.y - 62, 0, 0, 14, 0, 7, 10, alert ? 0xff6b5b : 0xffd23b).setStrokeStyle(1, 0x000000);
       this.tweens.add({ targets: mark, y: s.y - 54, duration: 600, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
       zone.on('pointerdown', () => plate.setScale(0.96));
       zone.on('pointerout', () => plate.setScale(1));
@@ -150,38 +164,71 @@ export class TownScene extends Phaser.Scene {
     layer.add(b.container);
   }
 
-  /** Placeholder village drawn with shapes (replaced by public/art/town/bg.png when it exists). */
-  private drawVillage() {
+  /** Placeholder village drawn with shapes (replaced by a town picture when one exists). */
+  private drawVillage(place: string) {
+    const look = LOOK[place] ?? LOOK['탁현'];
     const g = this.add.graphics();
     // sky and hills
-    g.fillGradientStyle(0x3b5a86, 0x3b5a86, 0xc9b48a, 0xc9b48a, 1).fillRect(0, 0, W, 200);
-    g.fillStyle(0x51653f, 1).fillEllipse(70, 200, 260, 120).fillEllipse(290, 196, 300, 110);
-    // ground
-    g.fillStyle(0x6f7f45, 1).fillRect(0, 190, W, H - 190);
-    for (let i = 0; i < 60; i++) {
-      g.fillStyle(i % 2 ? 0x66763f : 0x7a8a4c, 0.8).fillEllipse(Phaser.Math.Between(0, W), Phaser.Math.Between(200, H), Phaser.Math.Between(10, 26), 4);
+    g.fillGradientStyle(look.sky[0], look.sky[0], look.sky[1], look.sky[1], 1).fillRect(0, 0, W, 170);
+    g.fillStyle(look.hill, 1).fillEllipse(70, 172, 260, 110).fillEllipse(290, 168, 300, 100);
+    if (look.extra === 'wall') {
+      // 청주성 walls on the horizon
+      g.fillStyle(0x8a8070, 1).fillRect(150, 118, 210, 34);
+      for (let x = 150; x < W; x += 16) g.fillRect(x, 110, 9, 10);
     }
-    // the road: from the village square down to the gate at the edge of town
-    g.lineStyle(34, 0xa98a5c, 1).beginPath().moveTo(-10, 300).lineTo(120, 330).lineTo(190, 420).lineTo(300, 470).lineTo(380, 470).strokePath();
-    g.lineStyle(22, 0xbfa070, 1).beginPath().moveTo(-10, 300).lineTo(120, 330).lineTo(190, 420).lineTo(300, 470).lineTo(380, 470).strokePath();
-    // houses
-    const house = (x: number, y: number, s = 1, roof = 0x5a3a2a) => {
-      g.fillStyle(0xd8c8a4, 1).fillRect(x - 22 * s, y - 16 * s, 44 * s, 26 * s);
-      g.fillStyle(roof, 1).fillTriangle(x - 30 * s, y - 14 * s, x + 30 * s, y - 14 * s, x, y - 36 * s);
-      g.fillStyle(0x3a2a1e, 1).fillRect(x - 5 * s, y - 2 * s, 10 * s, 12 * s);
+    // ground
+    g.fillStyle(look.ground, 1).fillRect(0, 162, W, H - 162);
+    for (let i = 0; i < 60; i++) {
+      const x = Phaser.Math.Between(0, W);
+      const y = Phaser.Math.Between(170, H);
+      g.fillStyle(look.extra === 'burnt' && i % 3 === 0 ? 0x2a2420 : i % 2 ? 0x000000 : 0xffffff, look.extra === 'burnt' && i % 3 === 0 ? 0.6 : 0.06);
+      g.fillEllipse(x, y, Phaser.Math.Between(10, 30), 5);
+    }
+    // the road from the village square to the gate at the edge of town
+    const road = (w: number, c: number) =>
+      g.lineStyle(w, c, 1).beginPath().moveTo(-10, 300).lineTo(180, 300).lineTo(190, 450).lineTo(268, 500).lineTo(380, 500).strokePath();
+    road(34, 0xa98a5c);
+    road(22, 0xbfa070);
+    // trees
+    const tree = (x: number, y: number, pink = false) => {
+      g.fillStyle(0x5a4030, 1).fillRect(x - 3, y, 6, 14);
+      g.fillStyle(pink ? 0xf0a6b8 : 0x3f6a34, 1).fillCircle(x, y - 4, 13).fillCircle(x - 9, y + 2, 9).fillCircle(x + 9, y + 2, 9);
     };
-    house(40, 410, 0.9);
-    house(200, 270, 0.8, 0x6b3b2a);
-    house(318, 236, 0.85);
-    house(80, 560, 1, 0x6b3b2a);
-    house(190, 590, 0.8);
+    tree(180, 190, true);
+    tree(26, 300 - 40);
+    tree(340, 300, true);
+    tree(30, 560);
+    tree(180, 560, true);
+    if (look.extra === 'tents') {
+      // 노식's government camp: rows of small tents
+      for (const [x, y] of [[170, 250], [200, 236], [330, 432], [30, 470]])
+        g.fillStyle(0xd8ccb0, 1).fillTriangle(x - 16, y + 10, x + 16, y + 10, x, y - 12);
+    }
     // 군막: a big tent with a banner
     const c = SPOTS.camp;
     g.fillStyle(0xe8dcc0, 1).fillTriangle(c.x - 50, c.y + 20, c.x + 50, c.y + 20, c.x, c.y - 34);
     g.fillStyle(0xb9a98a, 1).fillTriangle(c.x - 8, c.y + 20, c.x + 8, c.y + 20, c.x, c.y - 10);
     g.lineStyle(2, 0x6b5a40, 1).strokeTriangle(c.x - 50, c.y + 20, c.x + 50, c.y + 20, c.x, c.y - 34);
-    g.lineStyle(3, 0x5a4030, 1).lineBetween(c.x + 34, c.y + 20, c.x + 34, c.y - 50);
-    g.fillStyle(0x2f6fd6, 1).fillRect(c.x + 35, c.y - 50, 22, 14);
+    g.lineStyle(3, 0x5a4030, 1).lineBetween(c.x + 38, c.y + 20, c.x + 38, c.y - 50);
+    g.fillStyle(0x2f6fd6, 1).fillRect(c.x + 39, c.y - 50, 22, 14);
+    // 대장간: stone forge with a chimney, glowing door and an anvil
+    const m = SPOTS.smithy;
+    g.fillStyle(0x7a7468, 1).fillRect(m.x - 38, m.y - 18, 76, 38);
+    g.fillStyle(0x3a3030, 1).fillTriangle(m.x - 46, m.y - 16, m.x + 46, m.y - 16, m.x, m.y - 40);
+    g.fillStyle(0x5a5450, 1).fillRect(m.x + 18, m.y - 52, 12, 30);
+    g.fillStyle(0xff8a3a, 1).fillRect(m.x - 12, m.y - 2, 24, 22);
+    g.fillStyle(0x2a2a2a, 1).fillRect(m.x + 42, m.y + 8, 18, 6).fillRect(m.x + 47, m.y + 14, 8, 8);
+    const smoke = this.add.circle(m.x + 24, m.y - 56, 7, 0xdddddd, 0.6);
+    this.tweens.add({ targets: smoke, y: m.y - 86, alpha: 0, scale: 2, duration: 2200, repeat: -1 });
+    // 주막: a house with red lanterns and a wine flag
+    const t = SPOTS.tavern;
+    g.fillStyle(0xd8c8a4, 1).fillRect(t.x - 36, t.y - 16, 72, 36);
+    g.fillStyle(0x6b3b2a, 1).fillTriangle(t.x - 46, t.y - 14, t.x + 46, t.y - 14, t.x, t.y - 40);
+    g.fillStyle(0x3a2a1e, 1).fillRect(t.x - 9, t.y, 18, 20);
+    g.fillStyle(0xd23a2a, 1).fillCircle(t.x - 26, t.y - 6, 5).fillCircle(t.x + 26, t.y - 6, 5);
+    g.lineStyle(2, 0x5a4030, 1).lineBetween(t.x + 44, t.y + 20, t.x + 44, t.y - 34);
+    g.fillStyle(0xf3e9d2, 1).fillRect(t.x + 30, t.y - 34, 13, 20);
+    this.add.text(t.x + 36, t.y - 24, '酒', { fontFamily: FONT, fontSize: '11px', color: '#b02a1a', resolution: RES }).setOrigin(0.5);
     // 창고: a wooden storehouse with crates
     const s = SPOTS.store;
     g.fillStyle(0x8a6a44, 1).fillRect(s.x - 40, s.y - 22, 80, 42);
@@ -189,9 +236,10 @@ export class TownScene extends Phaser.Scene {
     g.fillStyle(0x3a2a1e, 1).fillRect(s.x - 12, s.y - 4, 24, 24);
     g.fillStyle(0xa8844e, 1).fillRect(s.x + 44, s.y + 6, 16, 14).fillRect(s.x + 48, s.y - 6, 12, 12);
     // 출진: the town gate at the end of the road
-    const t = SPOTS.gate;
-    g.fillStyle(0x6b3b2a, 1).fillRect(t.x - 36, t.y - 44, 10, 64).fillRect(t.x + 26, t.y - 44, 10, 64);
-    g.fillStyle(0x5a2418, 1).fillRect(t.x - 46, t.y - 54, 92, 12);
-    g.fillStyle(0xffd23b, 1).fillRect(t.x - 10, t.y - 40, 20, 12);
+    const gt = SPOTS.gate;
+    g.fillStyle(0x6b3b2a, 1).fillRect(gt.x - 36, gt.y - 44, 10, 64).fillRect(gt.x + 26, gt.y - 44, 10, 64);
+    g.fillStyle(0x5a2418, 1).fillRect(gt.x - 46, gt.y - 54, 92, 12);
+    g.fillStyle(0xffd23b, 1).fillRect(gt.x - 10, gt.y - 40, 20, 12);
+    if (look.extra === 'gloom') g.fillStyle(0x1a1030, 0.25).fillRect(0, 0, W, H);
   }
 }
