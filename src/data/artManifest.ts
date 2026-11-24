@@ -29,4 +29,4 @@ export const ICON_FILES: string[] = ['cav', 'inf', 'lacquer', 'manual', 'rawhide
 export const TOWN_FILES: string[] = ['guangzong', 'qingzhou', 'quyang', 'tavern', 'yingchuan', 'zhuoxian'];
 
 /** Title and story pictures under public/art/scenes/ (title.png, <scenarioId>.png). */
-export const SCENE_FILES: string[] = [];
+export const SCENE_FILES: string[] = ['ch1-1', 'ch1-2', 'ch1-3', 'ch1-4', 'ch1-5', 'ch1-6', 'title'];
