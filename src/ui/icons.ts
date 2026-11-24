@@ -5,8 +5,10 @@ import { FONT, RES } from './theme';
 
 /**
  * Pictures for loot: soldiers and smithing tools. Until real art exists each one is a coloured
- * circle with a hanja glyph (like the enemy tokens). To add art, drop a square PNG (about 128px,
- * transparent background) at public/art/icons/<key>.png and run `node tools/art-manifest.mjs`.
+ * circle with a hanja glyph (like the enemy tokens). Art lives at public/art/icons/<key>.png (about
+ * 128px, transparent), cut from assets/raw/icons-sheet.png with
+ * `tools/cut-sheet.mjs <sheet> <dir> --grid 4x2 --max 128 inf cav whetstone lacquer rawhide steel manual empty`;
+ * run `node tools/art-manifest.mjs` afterwards.
  */
 export type IconKey = 'inf' | 'cav' | ItemId;
 
@@ -30,7 +32,9 @@ export function preloadIcons(scene: Phaser.Scene) {
 export function icon(scene: Phaser.Scene, k: IconKey, x: number, y: number, size: number): Phaser.GameObjects.Container {
   const c = scene.add.container(x, y);
   if (scene.textures.exists(key(k))) {
-    c.add(scene.add.image(0, 0, key(k)).setDisplaySize(size, size));
+    const img = scene.add.image(0, 0, key(k));
+    img.setScale(size / Math.max(img.width, img.height)); // fit inside the square, keep the shape
+    c.add(img);
     return c;
   }
   const look = ICON_LOOK[k];

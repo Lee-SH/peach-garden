@@ -23,4 +23,4 @@ export const ART_FILES: Record<string, string[]> = {
 };
 
 /** Icons that exist under public/art/icons/ (others are drawn as placeholder circles). */
-export const ICON_FILES: string[] = [];
+export const ICON_FILES: string[] = ['cav', 'inf', 'lacquer', 'manual', 'rawhide', 'steel', 'whetstone'];
