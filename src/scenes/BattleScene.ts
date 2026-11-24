@@ -565,11 +565,13 @@ export class BattleScene extends Phaser.Scene {
     this.pending = null;
     const party = this.b.fighters.filter((f) => f.side === 'player');
     const lines: string[] = [];
+    /** this battle's merit (= the XP earned) decides who gets the new soldiers */
+    const merit: Record<string, number> = {};
     if (victory) {
       for (const f of party) {
         if (f.dead) continue;
         const before = f.level;
-        const xp = battleXp(f);
+        const xp = (merit[f.id] = battleXp(f));
         const levels = gainXp(f, xp);
         lines.push(`${f.name} (${SLOT_NAMES[f.slot]})  경험치 +${xp}${levels.length ? `  Lv ${before} → ${f.level}` : ''}`);
       }
@@ -583,11 +585,12 @@ export class BattleScene extends Phaser.Scene {
     let saved: CampaignSave | null = null;
     if (victory) {
       const loot = scenarioLoot(this.sc);
-      const r = grantLootDetail(applyBattleResult(this.save, party, this.sc.next), loot);
+      const r = grantLootDetail(applyBattleResult(this.save, party, this.sc.next), loot, merit);
       saved = r.save;
       result.loot = {
         ...loot,
         given: r.given,
+        merit,
         note: stageOf(this.sc) === 1 ? '중산의 상인 장세평·소쌍이 말과 철을 바쳤다.' : undefined,
       };
     }

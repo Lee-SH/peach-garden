@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { applyGear, applyTroops, CAV_ATK, CAV_SPD, GRADE_NAMES, INF_DEF, INF_HP, MAX_LEVEL, troopCap, undoRefund, upgradeCost, type ItemId, type Troops, type Upgrade } from '../core/army';
+import { xpToNext } from '../core/combat';
 import { assignedTo, gearOf, refine, setAssign, unassigned, unrefine } from '../core/campaign';
 import { loadSave, newCampaign, writeSave, type CampaignSave } from '../core/save';
 import { artKey, hasArt, hasPose } from '../data/art';
@@ -126,17 +127,22 @@ export class CampScene extends Phaser.Scene {
         this.sel = id;
         this.render();
       });
-      this.portrait(add, id, cx, 180, 46);
-      add(text(this, cx, 206, `${GENERALS[id].name} Lv${s.roster[id].level}`, 12).setOrigin(0.5, 0));
-      ico('inf', cx - 38, 234, 16);
-      add(text(this, cx - 28, 234, `${t.inf}`, 12).setOrigin(0, 0.5));
-      ico('cav', cx + 10, 234, 16);
-      add(text(this, cx + 20, 234, `${t.cav}`, 12).setOrigin(0, 0.5));
-      // command bar
-      const bw = cw - 20;
-      const fill = Math.min(1, (t.inf + t.cav) / cap);
-      add(this.add.rectangle(cx - bw / 2, 254, bw, 5, 0x000000, 0.5).setOrigin(0, 0.5));
-      if (fill) add(this.add.rectangle(cx - bw / 2, 254, bw * fill, 5, 0xe8c15a).setOrigin(0, 0.5));
+      this.portrait(add, id, cx, 178, 44);
+      add(text(this, cx, 202, `${GENERALS[id].name} Lv${s.roster[id].level}`, 12).setOrigin(0.5, 0));
+      ico('inf', cx - 38, 228, 16);
+      add(text(this, cx - 28, 228, `${t.inf}`, 12).setOrigin(0, 0.5));
+      ico('cav', cx + 10, 228, 16);
+      add(text(this, cx + 20, 228, `${t.cav}`, 12).setOrigin(0, 0.5));
+      // two labelled bars: XP toward the next level, and how full the command is
+      const bar = (y: number, label: string, frac: number, color: number) => {
+        add(text(this, cx - 48, y, label, 10, COLOR.dim).setOrigin(0, 0.5));
+        const bx = cx - 20;
+        const bw = 66;
+        add(this.add.rectangle(bx, y, bw, 5, 0x000000, 0.5).setOrigin(0, 0.5));
+        if (frac > 0) add(this.add.rectangle(bx, y, bw * Math.min(1, frac), 5, color).setOrigin(0, 0.5));
+      };
+      bar(246, '경험', s.roster[id].xp / xpToNext(s.roster[id].level), 0x7cc4ff);
+      bar(259, '통솔', (t.inf + t.cav) / cap, 0xe8c15a);
     });
 
     // --- selected general: soldiers and gear -----------------------------------------------------
@@ -148,7 +154,7 @@ export class CampScene extends Phaser.Scene {
     panel(276, 346);
 
     add(text(this, 18, 284, `${g.name}의 병력`, 13, COLOR.gold));
-    add(text(this, W - 18, 286, `통솔 ${t.inf + t.cav} / ${cap}`, 11, COLOR.dim).setOrigin(1, 0));
+    add(text(this, W - 18, 286, `통솔 ${t.inf + t.cav} / ${cap} (레벨업마다 +30)`, 11, COLOR.dim).setOrigin(1, 0));
     const room = cap - t.inf - t.cav;
     const troopRow = (k: 'inf' | 'cav', y: number) => {
       const n = t[k];

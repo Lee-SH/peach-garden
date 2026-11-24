@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyTroops, autoAssign, lootFor, loseTroops, troopCap, upgrade, upgradeCost, NO_GEAR } from '../src/core/army';
+import { applyTroops, splitByWeight, lootFor, loseTroops, troopCap, upgrade, upgradeCost, NO_GEAR } from '../src/core/army';
 import { assignedTo, gearOf, grantLoot, grantLootDetail, refine, setAssign, unassigned, unrefine } from '../src/core/campaign';
 import { baseDamage, useSkill } from '../src/core/combat';
 import { newCampaign } from '../src/core/save';
@@ -38,11 +38,16 @@ describe('troops', () => {
     expect(ev.some((x) => x.type === 'troops' && x.id === f.id)).toBe(true);
   });
 
-  it('auto split respects caps and hands out everything that fits', () => {
-    const caps: Record<string, number> = { a: troopCap(1), b: troopCap(3), c: troopCap(5) };
-    const out = autoAssign({ inf: 300, cav: 100 }, caps);
-    for (const id of Object.keys(caps)) expect(out[id].inf + out[id].cav).toBeLessThanOrEqual(caps[id]);
-    expect(Object.values(out).reduce((a, t) => a + t.inf + t.cav, 0)).toBe(400);
+  it('soldiers go by merit, never above anyone\'s room', () => {
+    const out = splitByWeight({ inf: 300, cav: 100 }, { a: 60, b: 30, c: 10 }, { a: 150, b: 300, c: 300 });
+    expect(out.a.inf + out.a.cav).toBeLessThanOrEqual(150);
+    expect(out.b.inf).toBeGreaterThan(out.c.inf);
+    expect(Object.values(out).reduce((n, t) => n + t.inf + t.cav, 0)).toBe(400);
+    // the top fighter gets the biggest share while there's room
+    const free = splitByWeight({ inf: 100, cav: 0 }, { a: 60, b: 30, c: 10 }, { a: 999, b: 999, c: 999 });
+    expect(free.a.inf).toBe(60);
+    expect(free.b.inf).toBe(30);
+    expect(free.c.inf).toBe(10);
   });
 
   it('a new battle starts at full strength (losses are not saved)', () => {
@@ -114,12 +119,19 @@ describe('undo and new soldiers', () => {
     expect(unrefine(s, 'guanyu', 'edge')).not.toBeNull();
   });
 
+  it('the best fighter of the battle gets the most new soldiers', () => {
+    const r = grantLootDetail(newCampaign(), { troops: { inf: 100, cav: 50 }, items: {} }, { liubei: 10, guanyu: 70, zhangfei: 20 });
+    const got = (id: string) => r.given[id].inf + r.given[id].cav;
+    expect(got('guanyu')).toBeGreaterThan(got('zhangfei'));
+    expect(got('zhangfei')).toBeGreaterThan(got('liubei'));
+  });
+
   it('new soldiers fill free room and never undo hand-made choices', () => {
     let s = grantLoot(newCampaign(), { troops: { inf: 60, cav: 0 }, items: {} });
     s = setAssign(s, 'liubei', { inf: 0, cav: 0 });
     const kept = assignedTo(s, 'guanyu');
     const r = grantLootDetail(s, { troops: { inf: 0, cav: 30 }, items: {} });
-    expect(assignedTo(r.save, 'guanyu').inf).toBe(kept.inf);
+    expect(assignedTo(r.save, 'guanyu').inf).toBeGreaterThanOrEqual(kept.inf) // kept, maybe topped up;
     const got = Object.values(r.given).reduce((a, t) => a + t.inf + t.cav, 0);
     expect(got).toBe(30 + unassigned(s).inf); // the new cavalry plus whatever sat in the camp
     expect(unassigned(r.save)).toEqual({ inf: 0, cav: 0 });

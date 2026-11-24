@@ -68,11 +68,12 @@ export function autoCampaign(formation: string[] | Positions, seed: number, maxA
       log.push({ id, attempts, deaths: [], levels: {} });
       return { log, finished: false };
     }
-    for (const f of run.party) if (!f.dead) gainXp(f, battleXp(f));
+    const merit: Record<string, number> = {};
+    for (const f of run.party) if (!f.dead) gainXp(f, (merit[f.id] = battleXp(f)));
     save = applyBattleResult(save, run.party, sc.next);
     if (rewards) {
-      // loot is split automatically and every affordable upgrade is bought (a casual player)
-      save = grantLoot(save, scenarioLoot(sc));
+      // new soldiers go by merit and every affordable upgrade is bought (a casual player)
+      save = grantLoot(save, scenarioLoot(sc), merit);
       save = autoRefine(save, run.party.map((f) => f.id));
     }
     log.push({

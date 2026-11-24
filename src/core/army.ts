@@ -56,30 +56,34 @@ export function loseTroops(f: Fighter, damage: number): number {
   return before - (t.inf + t.cav);
 }
 
-/** Split soldiers over generals in proportion to their command caps (multiples of 10, never above a cap). */
-export function autoAssign(pool: Troops, caps: Record<string, number>): Record<string, Troops> {
-  const ids = Object.keys(caps);
-  const total = ids.reduce((a, id) => a + caps[id], 0) || 1;
-  const out: Record<string, Troops> = {};
-  let inf = pool.inf;
-  let cav = pool.cav;
-  for (const id of ids) {
-    const share = caps[id] / total;
-    const i = Math.min(inf, Math.floor((pool.inf * share) / 10) * 10, caps[id]);
-    const c = Math.min(cav, Math.floor((pool.cav * share) / 10) * 10, caps[id] - i);
-    out[id] = { inf: i, cav: c };
-    inf -= i;
-    cav -= c;
-  }
-  // leftovers (rounding) go to whoever still has room
-  for (const id of ids) {
-    const room = caps[id] - out[id].inf - out[id].cav;
-    const i = Math.min(inf, room);
-    out[id].inf += i;
-    inf -= i;
-    const c = Math.min(cav, room - i);
-    out[id].cav += c;
-    cav -= c;
+/**
+ * Hand out soldiers in proportion to `weight` (battle merit), 10 at a time, never above anyone's
+ * `room`. Uses the D'Hondt rule so shares stay proportional; whoever is full is skipped and what
+ * nobody can take is left over. Infantry first, then cavalry from the room that's left.
+ */
+export function splitByWeight(pool: Troops, weight: Record<string, number>, room: Record<string, number>): Record<string, Troops> {
+  const ids = Object.keys(room);
+  const out: Record<string, Troops> = Object.fromEntries(ids.map((id) => [id, { inf: 0, cav: 0 }]));
+  const left = { ...room };
+  for (const kind of ['inf', 'cav'] as const) {
+    let rest = pool[kind];
+    while (rest > 0) {
+      const chunk = Math.min(10, rest);
+      let best: string | null = null;
+      let score = -1;
+      for (const id of ids) {
+        if (left[id] < chunk) continue;
+        const s = (weight[id] ?? 0) / (out[id][kind] / 10 + 1);
+        if (s > score) {
+          score = s;
+          best = id;
+        }
+      }
+      if (!best) break;
+      out[best][kind] += chunk;
+      left[best] -= chunk;
+      rest -= chunk;
+    }
   }
   return out;
 }

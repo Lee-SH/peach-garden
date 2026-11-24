@@ -1,7 +1,7 @@
 /**
  * Campaign-level bookkeeping for troops and refining (pure functions on CampaignSave).
  */
-import { addItems, autoAssign, downgrade, NO_GEAR, troopCap, upgrade, type Gear, type Loot, type Troops, type Upgrade } from './army';
+import { addItems, downgrade, splitByWeight, NO_GEAR, troopCap, upgrade, type Gear, type Loot, type Troops, type Upgrade } from './army';
 import type { CampaignSave } from './save';
 
 export const gearOf = (save: CampaignSave, id: string): Gear => ({ ...NO_GEAR, ...save.gear?.[id] });
@@ -38,17 +38,19 @@ export function unassigned(save: CampaignSave): Troops {
 }
 
 /**
- * Hand soldiers sitting in the camp to generals who still have room (in proportion to that room).
- * Existing assignments are never touched. Returns who got how many.
+ * Hand soldiers sitting in the camp to generals who still have room. With `merit` (how much each
+ * general did in the battle just won) the best fighters get the most; without it, shares follow
+ * the free room. Existing assignments are never touched. Returns who got how many.
  */
-export function distributeFree(save: CampaignSave): { save: CampaignSave; given: Record<string, Troops> } {
+export function distributeFree(save: CampaignSave, merit?: Record<string, number>): { save: CampaignSave; given: Record<string, Troops> } {
   const room = Object.fromEntries(
     livingIds(save).map((id) => {
       const a = assignedTo(save, id);
       return [id, troopCap(save.roster[id].level) - a.inf - a.cav];
     }),
   );
-  const given = autoAssign(unassigned(save), room);
+  const hasMerit = merit && Object.keys(room).some((id) => (merit[id] ?? 0) > 0);
+  const given = splitByWeight(unassigned(save), hasMerit ? merit! : room, room);
   const assign: Record<string, Troops> = {};
   for (const id of livingIds(save)) {
     const a = assignedTo(save, id);
@@ -57,18 +59,21 @@ export function distributeFree(save: CampaignSave): { save: CampaignSave; given:
   return { save: { ...save, assign }, given };
 }
 
-/** Add battle loot: tools go to the camp, new soldiers join the generals who have room. */
-export function grantLoot(save: CampaignSave, loot: Loot): CampaignSave {
-  return grantLootDetail(save, loot).save;
+/** Add battle loot: tools go to the camp, new soldiers go to the generals by merit (see distributeFree). */
+export function grantLoot(save: CampaignSave, loot: Loot, merit?: Record<string, number>): CampaignSave {
+  return grantLootDetail(save, loot, merit).save;
 }
 
-export function grantLootDetail(save: CampaignSave, loot: Loot): { save: CampaignSave; given: Record<string, Troops> } {
+export function grantLootDetail(save: CampaignSave, loot: Loot, merit?: Record<string, number>): { save: CampaignSave; given: Record<string, Troops> } {
   const army = armyOf(save);
-  return distributeFree({
-    ...save,
-    army: { inf: army.inf + loot.troops.inf, cav: army.cav + loot.troops.cav },
-    items: addItems(save.items ?? {}, loot.items),
-  });
+  return distributeFree(
+    {
+      ...save,
+      army: { inf: army.inf + loot.troops.inf, cav: army.cav + loot.troops.cav },
+      items: addItems(save.items ?? {}, loot.items),
+    },
+    merit,
+  );
 }
 
 /** Change one general's soldiers by hand (clamped to their cap and to what's in the camp). */

@@ -15,7 +15,7 @@ export interface ResultData {
   /** next scenario id after a victory, or null when the content ends here */
   next: string | null;
   /** what was won, and which general got how many of the new soldiers */
-  loot?: Loot & { given: Record<string, Troops>; note?: string };
+  loot?: Loot & { given: Record<string, Troops>; merit?: Record<string, number>; note?: string };
 }
 
 export class ResultScene extends Phaser.Scene {
@@ -49,7 +49,10 @@ export class ResultScene extends Phaser.Scene {
 
   /** The loot as icons, then how the new soldiers were shared out. */
   private drawLoot(loot: NonNullable<ResultData['loot']>, top: number) {
-    const rows = Object.entries(loot.given).filter(([, t]) => t.inf + t.cav > 0);
+    const merit = loot.merit ?? {};
+    const rows = Object.entries(loot.given)
+      .filter(([, t]) => t.inf + t.cav > 0)
+      .sort(([a], [b]) => (merit[b] ?? 0) - (merit[a] ?? 0));
     const save = loadSave();
     const left = save ? unassigned(save) : { inf: 0, cav: 0 };
     const h = 136 + Math.max(1, rows.length) * 22 + (loot.note ? 16 : 0) + (left.inf + left.cav ? 16 : 0);
@@ -73,7 +76,7 @@ export class ResultScene extends Phaser.Scene {
       text(this, x, y + 34, `+${g.n}`, 12).setOrigin(0.5, 0);
     });
     y += 58;
-    text(this, W / 2, y, '새 병력은 이렇게 나눠 받았어요', 11, COLOR.dim).setOrigin(0.5, 0);
+    text(this, W / 2, y, '새 병력은 활약한 만큼 나눠 받았어요', 11, COLOR.dim).setOrigin(0.5, 0);
     y += 20;
     if (!rows.length) {
       text(this, W / 2, y + 2, '모두 통솔 한도가 가득 찼어요', 12).setOrigin(0.5, 0);
@@ -81,11 +84,12 @@ export class ResultScene extends Phaser.Scene {
     }
     for (const [id, t] of rows) {
       const cy = y + 9;
-      text(this, W / 2 - 60, cy, GENERALS[id].name, 13).setOrigin(1, 0.5);
-      icon(this, 'inf', W / 2 - 34, cy, 18);
-      text(this, W / 2 - 22, cy, `+${t.inf}`, 13).setOrigin(0, 0.5);
-      icon(this, 'cav', W / 2 + 34, cy, 18);
-      text(this, W / 2 + 46, cy, `+${t.cav}`, 13).setOrigin(0, 0.5);
+      text(this, W / 2 - 104, cy, GENERALS[id].name, 13).setOrigin(0, 0.5);
+      if (merit[id] !== undefined) text(this, W / 2 - 66, cy, `활약 ${merit[id]}`, 11, COLOR.dim).setOrigin(0, 0.5);
+      icon(this, 'inf', W / 2 + 6, cy, 18);
+      text(this, W / 2 + 18, cy, `+${t.inf}`, 13).setOrigin(0, 0.5);
+      icon(this, 'cav', W / 2 + 66, cy, 18);
+      text(this, W / 2 + 78, cy, `+${t.cav}`, 13).setOrigin(0, 0.5);
       y += 22;
     }
     const tail = left.inf + left.cav ? `남은 보병 ${left.inf} · 기병 ${left.cav}은 보급고에 있어요.\n` : '';
