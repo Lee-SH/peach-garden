@@ -15,6 +15,7 @@ export const ART_FILES: Record<string, string[]> = {
   "sorc_fire": ['attack', 'down', 'hurt', 'idle'],
   "sorc_talisman": ['attack', 'down', 'hurt', 'idle'],
   "zhangfei": ['attack', 'idle', 'portrait', 'ult'],
+  "zhangliang": ['attack', 'idle', 'portrait', 'special'],
 };
 
 /** Icons that exist under public/art/icons/ (others are drawn as placeholder circles). */
