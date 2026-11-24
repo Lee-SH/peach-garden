@@ -13,8 +13,9 @@
 | 유비·관우·장비 (전신, 관절 부위) | ✅ |
 | 황건적 졸병 9종, 적장 7명 | ✅ |
 | 아이콘 7개 (보병, 기병, 도구 5종) | ✅ |
-| **마을 그림 5장** (화마다 진영) | ⏳ 아래 A |
-| **주막 안 그림 1장** | ⏳ 아래 B |
+| 마을 그림: 탁현 | ✅ (다른 진영도 그림이 올 때까지 이 그림을 씀) |
+| **마을 그림: 청주, 광종, 영천, 곡양** | ⏳ 아래 A-2 — 한 번에 한 장소씩! |
+| 주막 안 그림 | ✅ |
 
 ---
 
@@ -45,12 +46,15 @@ Zhuo county (탁현), spring: thatched farmhouses, peach trees in full pink blos
 No text, no letters, no writing on signs or flags, no frame. Generate only ONE image.
 ```
 
-### A-2 ~ A-5. 나머지 네 장 (같은 대화창에서 이어서)
+### A-2 ~ A-5. 나머지 네 장 (같은 대화창에서 이어서, **한 메시지에 한 장소만**)
+
+네 장소 문장을 한 번에 넣으면 Gemini가 한 그림에 섞어 그린다(실제로 그랬음). 한 메시지에 한 장소씩 보낸다.
 
 ```
-Same style and EXACTLY the same building layout as the previous town image (tent upper-left, forge upper-right, tavern left-middle, storehouse right-middle, gate lower-right, road to the gate, plain sky on top and plain ground at the bottom). Only the surroundings change:
+Same style and EXACTLY the same building layout as the first town image (Zhuo county) (tent upper-left, forge upper-right, tavern left-middle, storehouse right-middle, gate lower-right, road to the gate, plain sky on top and plain ground at the bottom). Only the surroundings change:
 [Place]
-(아래에서 하나를 골라 붙인다)
+(아래에서 하나만 골라 붙인다)
+The WHOLE image shows only this one place — do not mix in other places.
 No text, no letters, no frame. Generate only ONE image.
 ```
 

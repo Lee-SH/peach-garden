@@ -5,7 +5,7 @@ import { loadSave, type CampaignSave } from '../core/save';
 import { artKey, hasArt, hasPose } from '../data/art';
 import { TOWN_FILES } from '../data/artManifest';
 import { ITEM_ORDER, ITEMS } from '../data/items';
-import { PLACE_KEY, SPOTS, townOf } from '../data/town';
+import { PICTURE_SPOTS, PLACE_KEY, SPOTS, townOf } from '../data/town';
 import { newTalks } from '../data/tavern';
 import { GENERALS } from '../data/units';
 import { icon } from '../ui/icons';
@@ -69,14 +69,15 @@ export class TownScene extends Phaser.Scene {
     text(this, 22, 82, `유비: ${town.mood}`, 11).setWordWrapWidth(W - 40, true);
 
     // spots
-    this.spot(SPOTS.camp, () => this.scene.start('Camp', { back: { key: 'Town' } }));
-    this.spot(SPOTS.smithy, () => this.scene.start('Camp', { back: { key: 'Town' }, mode: 'smithy' }));
+    const spots = pic ? PICTURE_SPOTS : SPOTS;
+    this.spot(spots.camp, () => this.scene.start('Camp', { back: { key: 'Town' } }));
+    this.spot(spots.smithy, () => this.scene.start('Camp', { back: { key: 'Town' }, mode: 'smithy' }));
     const fresh = newTalks(save).length;
-    this.spot({ ...SPOTS.tavern, sub: fresh ? `새 이야기 ${fresh}` : SPOTS.tavern.sub }, () => this.scene.start('Tavern'), true, false, fresh > 0);
-    this.spot(SPOTS.store, () => this.openStore());
+    this.spot({ ...spots.tavern, sub: fresh ? `새 이야기 ${fresh}` : spots.tavern.sub }, () => this.scene.start('Tavern'), true, false, fresh > 0);
+    this.spot(spots.store, () => this.openStore());
     const gate = town.next
-      ? { ...SPOTS.gate, sub: town.next.label }
-      : { ...SPOTS.gate, label: '2장 준비 중', sub: '반동탁 연합' };
+      ? { ...spots.gate, sub: town.next.label }
+      : { ...spots.gate, label: '2장 준비 중', sub: '반동탁 연합' };
     this.spot(gate, () => town.next && startScenario(this, this.save), !!town.next, true);
 
     this.drawParty();
@@ -90,7 +91,7 @@ export class TownScene extends Phaser.Scene {
     const plateY = s.y + 40;
     const w = main ? 150 : 128;
     const plate = this.add
-      .rectangle(s.x, plateY, w, s.sub ? 40 : 26, main ? 0x5a2418 : 0x2a2119, 0.92)
+      .rectangle(s.x, plateY, w, s.sub ? 40 : 26, main ? 0x5a2418 : 0x2a2119, 1)
       .setStrokeStyle(2, main ? 0xffd23b : COLOR.panelLine);
     text(this, s.x, plateY - (s.sub ? 9 : 0), main && enabled ? `${s.label} ▶` : s.label, 15, COLOR.gold).setOrigin(0.5);
     if (s.sub) text(this, s.x, plateY + 10, s.sub, 10, alert ? '#ff9a7a' : COLOR.dim).setOrigin(0.5);

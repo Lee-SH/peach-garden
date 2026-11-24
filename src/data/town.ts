@@ -59,10 +59,30 @@ export const PLACE_KEY: Record<string, string> = {
  * these places (see docs/art-prompts.md): 군막 upper-left, 대장간 upper-right, 주막 left-middle,
  * 창고 right-middle, the gate out of town lower-right.
  */
-export const SPOTS = {
+export interface Spot {
+  x: number;
+  y: number;
+  label: string;
+  sub: string;
+}
+export type SpotId = 'camp' | 'smithy' | 'tavern' | 'store' | 'gate';
+
+export const SPOTS: Record<SpotId, Spot> = {
   camp: { x: 92, y: 212, label: '군영', sub: '장수 · 병력' },
   smithy: { x: 268, y: 214, label: '대장간', sub: '무기 · 갑옷 강화' },
   tavern: { x: 92, y: 384, label: '주막', sub: '이야기' },
   store: { x: 268, y: 362, label: '창고', sub: '도구 · 남은 병력' },
   gate: { x: 268, y: 522, label: '출진', sub: '' },
-} as const;
+};
+
+/**
+ * Where the spots sit on the town pictures (the AI drew blank sign boxes below each building; the
+ * game's name plates cover them). Measured on zhuoxian.png; later pictures keep the same layout.
+ */
+export const PICTURE_SPOTS: Record<SpotId, Spot> = {
+  camp: { ...SPOTS.camp, x: 113, y: 171 },
+  smithy: { ...SPOTS.smithy, x: 277, y: 171 },
+  tavern: { ...SPOTS.tavern, x: 94, y: 315 },
+  store: { ...SPOTS.store, x: 272, y: 322 },
+  gate: { ...SPOTS.gate, x: 280, y: 477 },
+};
