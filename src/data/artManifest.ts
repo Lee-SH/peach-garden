@@ -2,6 +2,7 @@
 /** Frame-art images that exist under public/art/<id>/ (anchors.json alongside). */
 export const ART_FILES: Record<string, string[]> = {
   "archer_hunter": ['attack', 'down', 'hurt', 'idle'],
+  "brute_farmhand": ['attack', 'down', 'hurt', 'idle'],
   "chengyuanzhi": ['attack', 'idle', 'portrait', 'special'],
   "dengmao": ['attack', 'idle', 'portrait', 'special'],
   "guanyu": ['attack', 'idle', 'portrait', 'ult'],
