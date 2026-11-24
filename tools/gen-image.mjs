@@ -7,7 +7,8 @@
  *
  * Reference pictures (style guides) are sent along with the prompt. The key is never printed.
  */
-import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { readFileSync, writeFileSync, existsSync, unlinkSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -70,5 +71,14 @@ if (!img) {
   console.error('no image returned', data.candidates?.[0]?.finishReason ?? '', txt ?? JSON.stringify(data.promptFeedback ?? {}));
   process.exit(3);
 }
-writeFileSync(out, Buffer.from(img.data, 'base64'));
+// the API may answer with JPEG data; keep the requested format (macOS sips converts)
+const wantPng = out.toLowerCase().endsWith('.png');
+if (wantPng && img.mimeType !== 'image/png') {
+  const tmp = `${out}.src.jpg`;
+  writeFileSync(tmp, Buffer.from(img.data, 'base64'));
+  execFileSync('sips', ['-s', 'format', 'png', tmp, '--out', out], { stdio: 'ignore' });
+  unlinkSync(tmp);
+} else {
+  writeFileSync(out, Buffer.from(img.data, 'base64'));
+}
 console.log(`${out} (${model}${aspect ? `, ${aspect}` : ''}) tokens: ${JSON.stringify(data.usageMetadata?.totalTokenCount ?? '?')}`);

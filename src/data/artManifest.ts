@@ -29,7 +29,7 @@ export const ICON_FILES: string[] = ['atkUp', 'burn', 'cav', 'defDown', 'inf', '
 export const TOWN_FILES: string[] = ['guangzong', 'qingzhou', 'quyang', 'tavern', 'yingchuan', 'zhuoxian'];
 
 /** Title and story pictures under public/art/scenes/ (title.png, <scenarioId>.png). */
-export const SCENE_FILES: string[] = ['ch1-1', 'ch1-2', 'ch1-3', 'ch1-4', 'ch1-5', 'ch1-6', 'title'];
+export const SCENE_FILES: string[] = ['ch1-1', 'ch1-1-meet', 'ch1-1-notice', 'ch1-1-sigh', 'ch1-1-uprising', 'ch1-2', 'ch1-3', 'ch1-4', 'ch1-5', 'ch1-6', 'splash', 'title'];
 
 /** Battle backgrounds under public/art/battle/ (<scenarioId>-sky.png, <scenarioId>-ground.png). */
 export const BATTLE_FILES: string[] = ['ch1-1-ground', 'ch1-1-sky', 'ch1-2-ground', 'ch1-2-sky', 'ch1-3-ground', 'ch1-3-sky', 'ch1-4-ground', 'ch1-4-sky', 'ch1-5-ground', 'ch1-5-sky', 'ch1-6-ground', 'ch1-6-sky'];
