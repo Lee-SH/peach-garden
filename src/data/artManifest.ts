@@ -26,4 +26,4 @@ export const ART_FILES: Record<string, string[]> = {
 export const ICON_FILES: string[] = ['cav', 'inf', 'lacquer', 'manual', 'rawhide', 'steel', 'whetstone'];
 
 /** Town pictures under public/art/town/ (the town is drawn with shapes until they exist). */
-export const TOWN_FILES: string[] = ['bg', 'tavern', 'zhuoxian'];
+export const TOWN_FILES: string[] = ['tavern', 'zhuoxian'];

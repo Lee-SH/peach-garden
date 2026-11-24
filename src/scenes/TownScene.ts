@@ -50,7 +50,7 @@ export class TownScene extends Phaser.Scene {
     this.save = save;
     const town = townOf(save);
 
-    const pic = [bgKey(PLACE_KEY[town.place] ?? ''), bgKey('bg')].find((k) => this.textures.exists(k));
+    const pic = [bgKey(PLACE_KEY[town.place] ?? ''), bgKey('bg'), bgKey('zhuoxian')].find((k) => this.textures.exists(k));
     if (pic) {
       const bg = this.add.image(W / 2, H / 2, pic);
       bg.setScale(Math.max(W / bg.width, H / bg.height));
