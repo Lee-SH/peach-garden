@@ -4,7 +4,7 @@ import { xpToNext } from '../core/combat';
 import { assignedTo, gearOf, refine, setAssign, unassigned, unrefine } from '../core/campaign';
 import { loadSave, newCampaign, writeSave, type CampaignSave } from '../core/save';
 import { artKey, hasArt, hasPose } from '../data/art';
-import { ITEM_ORDER, ITEMS, UPGRADE_LABEL } from '../data/items';
+import { ITEMS, UPGRADE_LABEL } from '../data/items';
 import { GENERALS, makeFighter } from '../data/units';
 import { icon, type IconKey } from '../ui/icons';
 import { button, COLOR, FONT, hd, RES, text, W } from '../ui/theme';
@@ -35,7 +35,8 @@ export class CampScene extends Phaser.Scene {
   private save!: CampaignSave;
   private back!: CampData['back'];
   private sel = '';
-  private info = '아이콘을 누르면 설명이 나와요.';
+  /** last tapped icon's description ('' = show the default hint) */
+  private info = '';
   private layer!: Phaser.GameObjects.Container;
 
   constructor() {
@@ -46,6 +47,7 @@ export class CampScene extends Phaser.Scene {
     hd(this);
     this.save = loadSave() ?? newCampaign();
     this.back = data.back;
+    this.info = '';
     const alive = this.alive();
     this.sel = data.select && alive.includes(data.select) ? data.select : alive[0];
     this.layer = this.add.container(0, 0);
@@ -96,23 +98,22 @@ export class CampScene extends Phaser.Scene {
     add(text(this, 14, 12, '군영', 20, COLOR.gold));
     btn(W - 52, 26, 84, 30, '돌아가기', () => this.scene.start(this.back.key, this.back.data));
 
-    // --- storehouse: loot not handed out yet ---------------------------------------------------
+    // --- spare soldiers (tools live in the town's 창고) ------------------------------------------
     panel(44, 98);
-    add(text(this, 18, 50, '보급고', 13, COLOR.gold));
-    add(text(this, W - 18, 52, '전리품 중 아직 나눠주지 않은 것', 11, COLOR.dim).setOrigin(1, 0));
+    add(text(this, 18, 50, '남은 병력', 13, COLOR.gold));
+    add(text(this, W - 18, 52, '아직 아무도 거느리지 않은 병사', 11, COLOR.dim).setOrigin(1, 0));
     const free = unassigned(s);
-    const store: { k: IconKey; n: number; tip: string }[] = [
-      { k: 'inf', n: free.inf, tip: `보병: 장수에게 주면 100명당 체력 +${INF_HP * 100}% · 방어 +${INF_DEF * 100}%` },
-      { k: 'cav', n: free.cav, tip: `기병: 장수에게 주면 100명당 공격 +${CAV_ATK * 100}% · 속도 +${CAV_SPD}` },
-      ...ITEM_ORDER.map((k) => ({ k, n: items[k] ?? 0, tip: `${ITEMS[k].name}(${ITEMS[k].hanja}): ${ITEMS[k].desc}` })),
+    const spare: { k: IconKey; n: number; name: string; tip: string }[] = [
+      { k: 'inf', n: free.inf, name: '보병', tip: `보병: 100명당 체력 +${INF_HP * 100}% · 방어 +${INF_DEF * 100}%` },
+      { k: 'cav', n: free.cav, name: '기병', tip: `기병: 100명당 공격 +${CAV_ATK * 100}% · 속도 +${CAV_SPD}` },
     ];
-    store.forEach((it, i) => {
-      const x = 36 + i * 48;
-      const c = ico(it.k, x, 86, 30, it.tip);
+    spare.forEach((it, i) => {
+      const x = 44 + i * 120;
+      const c = ico(it.k, x, 88, 30, it.tip);
       if (!it.n) c.setAlpha(0.3);
-      add(text(this, x, 104, `${it.n}`, 12, it.n ? COLOR.text : COLOR.dim).setOrigin(0.5, 0));
+      add(text(this, x + 22, 88, `${it.name} ${it.n}`, 14, it.n ? COLOR.text : COLOR.dim).setOrigin(0, 0.5));
     });
-    add(text(this, W / 2, 122, this.info, 11, COLOR.dim).setOrigin(0.5, 0).setWordWrapWidth(W - 28, true).setAlign('center'));
+    add(text(this, W / 2, 116, this.info || (free.inf + free.cav ? '장수 카드를 고르고 +10 · 채움으로 나눠 주세요.' : '병력은 전투에서 이기면 활약한 만큼 들어와요.'), 11, COLOR.dim).setOrigin(0.5, 0).setWordWrapWidth(W - 28, true).setAlign('center'));
 
     // --- generals: who carries what --------------------------------------------------------------
     const alive = this.alive();

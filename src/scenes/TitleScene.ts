@@ -1,9 +1,11 @@
 import Phaser from 'phaser';
 import { loadSave, newCampaign, writeSave, type CampaignSave } from '../core/save';
 import { SCENARIOS } from '../data/scenarios';
+import { townOf } from '../data/town';
 import { preloadArt } from '../data/art';
 import { preloadRigs } from '../ui/rig';
 import { preloadIcons } from '../ui/icons';
+import { preloadTown } from './TownScene';
 import { button, type Button, COLOR, H, hd, setButtonLabel, text, W } from '../ui/theme';
 import { readPrefs, writePrefs } from '../ui/prefs';
 
@@ -16,6 +18,7 @@ export class TitleScene extends Phaser.Scene {
     preloadArt(this);
     preloadRigs(this);
     preloadIcons(this);
+    preloadTown(this);
   }
 
   create() {
@@ -30,8 +33,8 @@ export class TitleScene extends Phaser.Scene {
       writeSave(fresh);
       startScenario(this, fresh);
     });
-    const label = save ? `이어하기 · ${SCENARIOS[save.scenarioId]?.title ?? ''}` : '이어하기';
-    const cont = button(this, W / 2, 444, 220, 48, label, () => save && startScenario(this, save));
+    const label = save ? `이어하기 · ${townOf(save).place} 진영` : '이어하기';
+    const cont = button(this, W / 2, 444, 220, 48, label, () => save && this.scene.start('Town'));
     cont.setEnabled(!!save && !!SCENARIOS[save.scenarioId]);
 
     // Compare the two animation styles (cutout rig vs frame art) — only affects generals with a rig
@@ -41,7 +44,7 @@ export class TitleScene extends Phaser.Scene {
       setButtonLabel(anim, animLabel());
     });
 
-    text(this, W / 2, H - 30, 'v0.9.1 · 1장 황건적의 난 (6화)', 12, COLOR.dim).setOrigin(0.5);
+    text(this, W / 2, H - 30, 'v0.10 · 1장 황건적의 난 (6화)', 12, COLOR.dim).setOrigin(0.5);
   }
 
   private drawPetals() {

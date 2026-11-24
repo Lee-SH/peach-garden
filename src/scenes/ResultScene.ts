@@ -6,7 +6,6 @@ import { ITEM_ORDER } from '../data/items';
 import { GENERALS } from '../data/units';
 import { icon, type IconKey } from '../ui/icons';
 import { button, COLOR, hd, text, W } from '../ui/theme';
-import { startScenario } from './TitleScene';
 
 export interface ResultData {
   victory: boolean;
@@ -30,19 +29,11 @@ export class ResultScene extends Phaser.Scene {
     if (data.loot) this.drawLoot(data.loot, body.y + body.height + 12);
 
     if (data.victory) {
-      button(this, W / 2, 456, 220, 40, '군영 (병력·재련)', () => this.scene.start('Camp', { back: { key: 'Result', data } }));
-      if (data.next) {
-        button(this, W / 2, 520, 220, 48, '다음 전투로', () => {
-          const save = loadSave();
-          if (save) startScenario(this, save);
-        });
-      } else {
-        text(this, W / 2, 516, '1장 완결!\n2장 「반동탁 연합」은 준비 중입니다.', 14, COLOR.gold).setOrigin(0.5).setAlign('center');
-      }
+      // between battles the army returns to its camp town: regroup there, then march from the gate
+      button(this, W / 2, 520, 220, 48, '진영으로 ▶', () => this.scene.start('Town'));
     } else {
-      button(this, W / 2, 500, 220, 48, '진형 바꿔 다시 하기', () =>
-        this.scene.start('Formation', { scenarioId: data.scenarioId }),
-      );
+      button(this, W / 2, 456, 220, 44, '진형 바꿔 다시 하기', () => this.scene.start('Formation', { scenarioId: data.scenarioId }));
+      button(this, W / 2, 516, 220, 44, '진영에서 정비하기', () => this.scene.start('Town'));
     }
     button(this, W / 2, 580, 220, 44, '타이틀로', () => this.scene.start('Title'));
   }

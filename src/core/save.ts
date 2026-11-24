@@ -52,8 +52,12 @@ export function applyBattleResult(save: CampaignSave, party: Fighter[], nextScen
   for (const u of party.filter((u) => u.side === 'player')) {
     roster[u.id] = { level: u.level, xp: u.xp, alive: !u.dead };
   }
-  return { ...save, roster, scenarioId: nextScenarioId ?? save.scenarioId };
+  // the last battle of the content stays the current scenario, marked as cleared
+  const flags = nextScenarioId ? save.flags : { ...save.flags, [clearedFlag(save.scenarioId)]: true };
+  return { ...save, roster, flags, scenarioId: nextScenarioId ?? save.scenarioId };
 }
+
+export const clearedFlag = (scenarioId: string) => `cleared_${scenarioId}`;
 
 export function loadSave(storage: Pick<Storage, 'getItem'> | null = safeStorage()): CampaignSave | null {
   try {

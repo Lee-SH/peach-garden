@@ -7,6 +7,7 @@ import { ResultScene } from './scenes/ResultScene';
 import { FormationScene } from './scenes/FormationScene';
 import { RigLabScene } from './scenes/RigLabScene';
 import { CampScene } from './scenes/CampScene';
+import { TownScene } from './scenes/TownScene';
 
 const game = new Phaser.Game({
   type: Phaser.AUTO,
@@ -21,7 +22,7 @@ const game = new Phaser.Game({
   },
   // Crisper Korean text on high-DPI phones
   render: { antialias: true },
-  scene: [TitleScene, StoryScene, FormationScene, CampScene, BattleScene, ResultScene, RigLabScene],
+  scene: [TitleScene, StoryScene, FormationScene, CampScene, TownScene, BattleScene, ResultScene, RigLabScene],
 });
 
 // Dev-only handle for browser automation / debugging
