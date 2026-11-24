@@ -42,7 +42,7 @@ export class TavernScene extends Phaser.Scene {
       const fresh = !save.flags[talkSeenFlag(t.id)];
       this.row(y, t.title, fresh ? '새 이야기' : '', () => {
         writeSave({ ...this.save, flags: { ...this.save.flags, [talkSeenFlag(t.id)]: true } });
-        this.scene.start('Story', { heading: `주막\n「${t.title}」`, lines: t.lines, next: { key: 'Tavern' } });
+        this.scene.start('Story', { heading: `주막\n「${t.title}」`, lines: t.lines, bg: 'tavern', next: { key: 'Tavern' } });
       });
       y += 44;
     }
@@ -56,7 +56,7 @@ export class TavernScene extends Phaser.Scene {
       if (y > H - 40) return;
       const sc = SCENARIOS[id];
       this.row(y, `${i + 1}화 「${sc.title}」`, '', () =>
-        this.scene.start('Story', { heading: `${sc.chapter}\n「${sc.title}」`, lines: [...sc.intro, ...sc.outro], next: { key: 'Tavern' } }),
+        this.scene.start('Story', { heading: `${sc.chapter}\n「${sc.title}」`, lines: [...sc.intro, ...sc.outro], bg: sc.id, next: { key: 'Tavern' } }),
       );
       y += 44;
     });

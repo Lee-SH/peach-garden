@@ -2,11 +2,13 @@ import Phaser from 'phaser';
 import type { Line } from '../data/scenarios';
 import { ENEMIES, GENERALS } from '../data/units';
 import { artKey, hasArt, hasPose } from '../data/art';
-import { button, COLOR, hd, text, W } from '../ui/theme';
+import { button, COLOR, H, hd, text, W } from '../ui/theme';
 
 export interface StoryData {
   heading?: string;
   lines: Line[];
+  /** background picture: public/art/scenes/<bg>.png (or a town picture of that name, e.g. 'tavern') */
+  bg?: string;
   next: { key: string; data?: object };
 }
 
@@ -29,7 +31,17 @@ export class StoryScene extends Phaser.Scene {
 
   create() {
     hd(this);
+    const pic = this.story.bg && [`scene-${this.story.bg}`, `town-${this.story.bg}`].find((k) => this.textures.exists(k));
+    if (pic) {
+      const bg = this.add.image(W / 2, 0, pic).setOrigin(0.5, 0);
+      bg.setScale(Math.max(W / bg.width, H / bg.height));
+      // darken a little, and fade to black behind the dialogue box
+      this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.15);
+      this.add.graphics().fillGradientStyle(0x14110e, 0x14110e, 0x14110e, 0x14110e, 0, 0, 1, 1).fillRect(0, 300, W, 100);
+      this.add.rectangle(W / 2, 400, W, H - 400, 0x14110e).setOrigin(0.5, 0);
+    }
     if (this.story.heading) {
+      if (pic) this.add.rectangle(W / 2, 150, W, 84, 0x000000, 0.55);
       text(this, W / 2, 150, this.story.heading, 22, COLOR.gold).setOrigin(0.5).setAlign('center');
     }
 

@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { loadSave, newCampaign, writeSave, type CampaignSave } from '../core/save';
 import { SCENARIOS } from '../data/scenarios';
 import { townOf } from '../data/town';
+import { SCENE_FILES } from '../data/artManifest';
 import { preloadArt } from '../data/art';
 import { preloadRigs } from '../ui/rig';
 import { preloadIcons } from '../ui/icons';
@@ -19,13 +20,24 @@ export class TitleScene extends Phaser.Scene {
     preloadRigs(this);
     preloadIcons(this);
     preloadTown(this);
+    for (const name of SCENE_FILES) this.load.image(`scene-${name}`, `${import.meta.env.BASE_URL}art/scenes/${name}.png`);
   }
 
   create() {
     hd(this);
+    // key art (public/art/scenes/title.png): title on the sky at the top, buttons over the darkened bottom
+    const art = this.textures.exists('scene-title');
+    if (art) {
+      const bg = this.add.image(W / 2, H / 2, 'scene-title');
+      bg.setScale(Math.max(W / bg.width, H / bg.height));
+      this.add.graphics().fillGradientStyle(0x000000, 0x000000, 0x000000, 0x000000, 0.55, 0.55, 0, 0).fillRect(0, 0, W, 170);
+      this.add.graphics().fillGradientStyle(0x14110e, 0x14110e, 0x14110e, 0x14110e, 0, 0, 0.85, 0.85).fillRect(0, 330, W, 120);
+      this.add.rectangle(W / 2, 450, W, H - 450, 0x14110e, 0.85).setOrigin(0.5, 0);
+    }
     this.drawPetals();
-    text(this, W / 2, 190, '도원', 64, COLOR.gold).setOrigin(0.5);
-    text(this, W / 2, 250, '桃園 · 삼국지 전술 RPG', 15, COLOR.dim).setOrigin(0.5);
+    const ty = art ? 70 : 190;
+    text(this, W / 2, ty, '도원', 64, COLOR.gold).setOrigin(0.5).setShadow(0, 3, '#000', 6, true, true);
+    text(this, W / 2, ty + 60, '桃園 · 삼국지 전술 RPG', 15, art ? '#f3e9d2' : COLOR.dim).setOrigin(0.5).setShadow(0, 2, '#000', 4, true, true);
 
     const save = loadSave();
     button(this, W / 2, 380, 200, 48, '새로 시작', () => {
@@ -71,6 +83,7 @@ export function startScenario(scene: Phaser.Scene, save: CampaignSave) {
   scene.scene.start('Story', {
     heading: `${sc.chapter}\n「${sc.title}」`,
     lines: sc.intro,
+    bg: sc.id,
     next: { key: 'Formation', data: { scenarioId: sc.id } },
   });
 }

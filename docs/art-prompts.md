@@ -15,6 +15,8 @@
 | 아이콘 7개 (보병, 기병, 도구 5종) | ✅ |
 | 마을 그림 5장: 탁현, 청주, 광종, 영천, 곡양 | ✅ |
 | 주막 안 그림 | ✅ |
+| **타이틀 그림 1장** | ⏳ 아래 C |
+| **이야기 그림 6장** (화마다) | ⏳ 아래 D — 한 번에 한 장면씩 |
 
 ---
 
@@ -80,3 +82,59 @@ No text, no letters, no writing on jars or signs, no frame. Generate only ONE im
 ```
 
 받으면 Claude가 `public/art/town/tavern.png`로 넣는다.
+
+---
+
+## C. 타이틀 그림 — 1장
+
+타이틀 "도원" 글자는 위쪽 하늘에, 버튼은 아래쪽(어둡게 덮임)에 올라간다. 인물은 가운데에 둔다.
+
+```
+Create an image. The attached images show our game's art style (hand-drawn chibi Three Kingdoms heroes): hand-inked lines with varied weight, flat 2-tone cel shading, limited and slightly muted palette. Now draw the TITLE SCREEN key art in the same style.
+
+A tall vertical image (portrait, 9:16). The Peach Garden Oath: Liu Bei (green robe, gentle face), Guan Yu (long black beard, green robe, red face) and Zhang Fei (wild black beard, dark armour) standing side by side in a blooming peach orchard, raising wine cups together toward the sky in a solemn oath. A small altar with incense in front of them. Peach petals drifting in the air.
+
+Layout:
+- Top 25%: open soft spring sky with a few blossom branches at the edges only (the game title will be written here).
+- 30%–60% from the top: the three brothers, full body, centred.
+- Bottom 40%: simple ground of fallen petals and grass, no important details (menu buttons go here).
+
+No text, no letters, no frame. Generate only ONE image.
+```
+
+받으면 Claude가 `public/art/scenes/title.png`로 넣는다.
+
+## D. 이야기 그림 — 화마다 1장 (6장)
+
+이야기 화면에서 제목과 대사 상자 뒤에 깔린다. 아래 40%는 대사 상자에 가려지고, 초상화가 왼쪽 아래에 선다. 그래서 **장면의 중심을 위쪽 절반에** 둔다. 인물은 작게(얼굴 클로즈업 없음) 그린다.
+
+### D-1. 첫 장 (새 대화창, 유비·장비 그림 첨부)
+
+```
+Create an image. The attached images show our game's art style (hand-drawn chibi Three Kingdoms heroes): hand-inked lines with varied weight, flat 2-tone cel shading, limited and slightly muted palette. Now draw a STORY ILLUSTRATION in the same style.
+
+A tall vertical image (portrait, 9:16). Put the whole scene in the TOP 55% of the image; the bottom 45% fades into plain dark ground (a dialogue box covers it). Figures are small, seen from a distance — no close-up faces.
+
+[Scene]
+Spring of 184 AD, Zhuo county: a small volunteer army of about five hundred marching out of the town gate along a dirt road, simple spears and a few banners, peach trees in blossom by the road. Three riders lead them at the front.
+
+No text, no letters, no writing on banners, no frame. Generate only ONE image.
+```
+
+### D-2 ~ D-6. 나머지 (같은 대화창에서, 한 메시지에 한 장면씩)
+
+```
+Same style and the same layout as the previous story illustration (scene in the top 55%, bottom 45% plain dark ground, small distant figures, no close-up faces). Only the scene changes:
+[Scene]
+(아래에서 하나만 골라 붙인다)
+No text, no letters, no writing on banners, no frame. Generate only ONE image.
+```
+
+[Scene]에 넣을 문장:
+- **2화 청주 구원 (ch1-2)**: `Qingzhou city under siege: a grey walled city in the distance surrounded by a sea of yellow-turbaned rebels and their yellow banners, smoke rising. In the foreground, wooded hills on both sides of a narrow road where a few soldiers hide in ambush.`
+- **3화 광종 원군 (ch1-3)**: `The imperial army camp at Guangzong: orderly rows of government tents and red Han banners behind wooden palisades, an old general in a command tent looking at a map, and far across the plain a huge rebel camp under yellow banners.`
+- **4화 영천의 불길 (ch1-4)**: `Night on the plains of Yingchuan: a vast grass field set on fire by the wind, a wall of orange flames, yellow-turbaned rebels fleeing out of the smoke, imperial soldiers with torches waiting on a hill.`
+- **5화 곡양의 요술 (ch1-5)**: `Quyang under a dark purple sky: a rebel sorcerer-general on a hill raising a sword with paper talismans, a swirling black whirlwind full of sand and ghostly shapes sweeping toward a small army.`
+- **6화 천공장군 장각 (ch1-6)**: `The plains of Guangzong at dusk: a great rebel army under countless yellow banners, an old mystic in a golden robe and tall yellow hat on a raised platform calling down yellow lightning from storm clouds, routed imperial soldiers in the distance.`
+
+받으면 Claude가 `public/art/scenes/ch1-1.png` … `ch1-6.png`로 넣는다. 같은 그림이 전투 뒤 이야기, 주막의 '지난 이야기 다시 보기'에도 쓰인다.

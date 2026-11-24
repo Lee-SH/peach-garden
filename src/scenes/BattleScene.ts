@@ -598,7 +598,7 @@ export class BattleScene extends Phaser.Scene {
     this.time.delayedCall(900, () => {
       if (saved) {
         writeSave(saved);
-        this.scene.start('Story', { lines: this.sc.outro, next: { key: 'Result', data: result } });
+        this.scene.start('Story', { lines: this.sc.outro, bg: this.sc.id, next: { key: 'Result', data: result } });
       } else {
         this.scene.start('Result', result);
       }

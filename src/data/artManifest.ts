@@ -27,3 +27,6 @@ export const ICON_FILES: string[] = ['cav', 'inf', 'lacquer', 'manual', 'rawhide
 
 /** Town pictures under public/art/town/ (the town is drawn with shapes until they exist). */
 export const TOWN_FILES: string[] = ['guangzong', 'qingzhou', 'quyang', 'tavern', 'yingchuan', 'zhuoxian'];
+
+/** Title and story pictures under public/art/scenes/ (title.png, <scenarioId>.png). */
+export const SCENE_FILES: string[] = [];
