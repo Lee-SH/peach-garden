@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { BATTLE_FILES } from '../data/artManifest';
 import { W } from './theme';
 
 /** Battlefield band shared by the battle and formation screens. */
@@ -6,8 +7,35 @@ export const FIELD_TOP = 92;
 export const GROUND_Y = 190;
 export const PANEL_Y = 412;
 
-/** Sky, parallax hills and the dirt road between FIELD_TOP and PANEL_Y. */
-export function drawField(scene: Phaser.Scene) {
+const layerKey = (id: string, part: 'sky' | 'ground') => `battle-${id}-${part}`;
+
+/** Queue this battle's background pictures (call from a scene's preload; loads only what exists). */
+export function preloadField(scene: Phaser.Scene, scenarioId: string) {
+  for (const part of ['sky', 'ground'] as const) {
+    const name = `${scenarioId}-${part}`;
+    if (BATTLE_FILES.includes(name) && !scene.textures.exists(layerKey(scenarioId, part)))
+      scene.load.image(layerKey(scenarioId, part), `${import.meta.env.BASE_URL}art/battle/${name}.png`);
+  }
+}
+
+/**
+ * The battlefield between FIELD_TOP and PANEL_Y: the battle's picture when it exists (sky layer
+ * and ground layer, see tools/battle-bg.mjs), otherwise drawn sky, parallax hills and a dirt road.
+ * Returns the scrolling layers (`near` is null with pictures).
+ */
+export function drawField(scene: Phaser.Scene, scenarioId?: string) {
+  if (scenarioId && scene.textures.exists(layerKey(scenarioId, 'sky')) && scene.textures.exists(layerKey(scenarioId, 'ground'))) {
+    const skyH = GROUND_Y - FIELD_TOP;
+    const groundH = PANEL_Y - GROUND_Y;
+    const fit = (t: Phaser.GameObjects.TileSprite, h: number) => {
+      const src = scene.textures.get(t.texture.key).getSourceImage();
+      t.setTileScale(h / src.height);
+      return t;
+    };
+    const far = fit(scene.add.tileSprite(0, FIELD_TOP, W, skyH, layerKey(scenarioId, 'sky')).setOrigin(0), skyH);
+    const ground = fit(scene.add.tileSprite(0, GROUND_Y, W, groundH, layerKey(scenarioId, 'ground')).setOrigin(0), groundH);
+    return { far, near: null, ground };
+  }
   makeTextures(scene);
   scene.add.rectangle(0, FIELD_TOP, W, GROUND_Y - FIELD_TOP, 0x2b3a5c).setOrigin(0);
   const far = scene.add.tileSprite(0, FIELD_TOP, W, 110, 'bg-far').setOrigin(0);

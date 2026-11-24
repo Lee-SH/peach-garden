@@ -7,7 +7,7 @@ import { GENERALS, makeFighter } from '../data/units';
 import { addSprite, hasArt, SPRITE_H } from '../data/art';
 import { readPrefs } from '../ui/prefs';
 import { hasRig, Rig } from '../ui/rig';
-import { drawField, FIELD_TOP, PANEL_Y } from '../ui/field';
+import { drawField, FIELD_TOP, PANEL_Y, preloadField } from '../ui/field';
 import { button, COLOR, FONT, H, hd, RES, text, W } from '../ui/theme';
 
 const CELL_W = 50;
@@ -42,6 +42,11 @@ export class FormationScene extends Phaser.Scene {
     super('Formation');
   }
 
+  preload() {
+    // this battle's background pictures, if drawn (loaded on demand, not at startup)
+    preloadField(this, (this.sys.settings.data as { scenarioId: string }).scenarioId);
+  }
+
   create(data: { scenarioId: string }) {
     hd(this);
     this.sc = SCENARIOS[data.scenarioId];
@@ -52,7 +57,7 @@ export class FormationScene extends Phaser.Scene {
     this.cells = [];
     this.selected = Object.keys(this.pos).sort((a, b) => this.pos[a].col - this.pos[b].col)[0] ?? '';
 
-    drawField(this);
+    drawField(this, this.sc.id);
     this.add.rectangle(W / 2, 0, W, FIELD_TOP, COLOR.bg).setOrigin(0.5, 0);
     text(this, 12, 12, `출진 준비 · ${this.sc.title}`, 16, COLOR.gold);
     text(this, 12, 40, '장수를 끌어서 칸에 놓으세요.\n다른 장수 위에 놓으면 서로 자리가 바뀝니다.', 12, COLOR.dim);

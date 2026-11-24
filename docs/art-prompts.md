@@ -17,6 +17,7 @@
 | 주막 안 그림 | ✅ |
 | 타이틀 그림 1장 | ✅ |
 | 이야기 그림 6장 (화마다) | ✅ |
+| **전투 배경 6장** (화마다) | ⏳ 아래 E — 한 번에 한 장씩 |
 
 ---
 
@@ -138,3 +139,72 @@ No text, no letters, no writing on banners, no frame. Generate only ONE image.
 - **6화 천공장군 장각 (ch1-6)**: `The plains of Guangzong at dusk: a great rebel army under countless yellow banners, an old mystic in a golden robe and tall yellow hat on a raised platform calling down yellow lightning from storm clouds, routed imperial soldiers in the distance.`
 
 받으면 Claude가 `public/art/scenes/ch1-1.png` … `ch1-6.png`로 넣는다. 같은 그림이 전투 뒤 이야기, 주막의 '지난 이야기 다시 보기'에도 쓰인다.
+
+---
+
+## E. 전투 배경 — 화마다 1장 (6장)
+
+가로로 긴 전장 그림을 Claude가 지평선(위에서 30%)에서 잘라 **하늘 층**과 **땅 층**으로 나누고, 좌우를 거울처럼 이어 붙여 끝없이 스크롤되게 만든다(`node tools/battle-bg.mjs <그림> <화 id>`). 그래서:
+- 지평선이 **위에서 30%** 높이에 곧게 있어야 한다.
+- 땅 가운데(장수와 적이 서는 곳)는 **넓고 평평하게 비워** 둔다. 자세한 것은 땅 아래 가장자리와 지평선 근처에만.
+- 사람·말·글자는 없어야 한다.
+
+### E-1. 첫 장 (새 대화창, 유비·장비 그림 첨부)
+
+```
+Create an image. The attached images show our game's art style (hand-drawn chibi Three Kingdoms heroes): hand-inked lines with varied weight, flat 2-tone cel shading, limited and slightly muted palette. Now draw a BATTLE BACKGROUND in the same style for a side-view auto-battle game.
+
+A wide landscape image (16:9), seen from the side at ground level like a side-scrolling game stage. No people, no horses, no text.
+
+Layout (important):
+- A straight, level horizon exactly 30% from the top. Above it: sky and distant scenery.
+- Below the horizon: open flat ground filling the rest of the image. Keep the middle of the ground (from 40% to 90% of the height) wide open and simple — only soft texture like grass tufts, dirt and small stones — because the fighters stand there.
+- Put any bigger details (bushes, rocks, fence posts) only right under the horizon or along the very bottom edge.
+- The left and right edges should look alike (it will be repeated sideways).
+
+[Battlefield]
+Outside Zhuo county in spring: green fields with a dirt road running sideways across the ground, distant blue hills, a few peach trees in pink blossom along the horizon, a soft dusk sky.
+
+No text, no letters, no frame. Generate only ONE image.
+```
+
+### E-2 ~ E-6. 나머지 (같은 대화창에서, 한 메시지에 한 장씩)
+
+아래 완성본을 하나씩 그대로 보낸다.
+
+**2화 청주 (ch1-2)**
+```
+Same style and EXACTLY the same layout as the previous battle background (side view, straight horizon 30% from the top, wide open flat ground in the middle, details only near the horizon and the bottom edge, left and right edges alike, no people). Only the battlefield changes:
+A narrow road between wooded hills near Qingzhou: forested slopes along the horizon, the grey walls of Qingzhou far away, trampled grass and dirt on the ground, late spring daylight.
+No text, no letters, no frame. Generate only ONE image.
+```
+
+**3화 광종 (ch1-3)**
+```
+Same style and EXACTLY the same layout as the previous battle background (side view, straight horizon 30% from the top, wide open flat ground in the middle, details only near the horizon and the bottom edge, left and right edges alike, no people). Only the battlefield changes:
+The dusty plain of Guangzong: wooden palisades and a few distant tents with red banners along the horizon, dry yellowish ground with wheel ruts, hazy early-summer sky.
+No text, no letters, no frame. Generate only ONE image.
+```
+
+**4화 영천 (ch1-4)**
+```
+Same style and EXACTLY the same layout as the previous battle background (side view, straight horizon 30% from the top, wide open flat ground in the middle, details only near the horizon and the bottom edge, left and right edges alike, no people). Only the battlefield changes:
+The grassland of Yingchuan at night during a great fire: a line of orange flames and smoke along the horizon, a dark red-orange sky, scorched black and half-burnt grass on the ground with a few glowing embers.
+No text, no letters, no frame. Generate only ONE image.
+```
+
+**5화 곡양 (ch1-5)**
+```
+Same style and EXACTLY the same layout as the previous battle background (side view, straight horizon 30% from the top, wide open flat ground in the middle, details only near the horizon and the bottom edge, left and right edges alike, no people). Only the battlefield changes:
+Near Quyang under sorcery: swirling dark purple clouds, a faint black whirlwind far away on the horizon, bare dead trees, grey ground with low drifting mist and a few torn yellow paper talismans.
+No text, no letters, no frame. Generate only ONE image.
+```
+
+**6화 장각 (ch1-6)**
+```
+Same style and EXACTLY the same layout as the previous battle background (side view, straight horizon 30% from the top, wide open flat ground in the middle, details only near the horizon and the bottom edge, left and right edges alike, no people). Only the battlefield changes:
+The plain of Guangzong at dusk before the final battle: countless yellow rebel banners standing along the horizon, storm clouds with distant yellow lightning, trampled earth with broken spears and a fallen banner near the bottom edge.
+No text, no letters, no frame. Generate only ONE image.
+```
+
+받으면 Claude가 `public/art/battle/ch1-N-sky.png`, `-ground.png`로 만든다. 그림이 없는 화는 지금처럼 도형 배경으로 나온다.

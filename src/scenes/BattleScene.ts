@@ -21,7 +21,7 @@ import { buildParty, buildWave, scenarioLoot, SCENARIO_ORDER, SCENARIOS, stageOf
 import { GENERALS } from '../data/units';
 import { button, type Button, COLOR, FONT, H, hd, RES, setButtonLabel, text, W } from '../ui/theme';
 import type { ResultData } from './ResultScene';
-import { drawField, FIELD_TOP, PANEL_Y } from '../ui/field';
+import { drawField, FIELD_TOP, PANEL_Y, preloadField } from '../ui/field';
 import { cellSpot } from '../core/formation';
 import { readPrefs, SPEEDS, writePrefs } from '../ui/prefs';
 import { hasRig, Rig } from '../ui/rig';
@@ -84,7 +84,7 @@ export class BattleScene extends Phaser.Scene {
   private fallen: string[] = [];
 
   private bgFar!: Phaser.GameObjects.TileSprite;
-  private bgNear!: Phaser.GameObjects.TileSprite;
+  private bgNear!: Phaser.GameObjects.TileSprite | null;
   private bgGround!: Phaser.GameObjects.TileSprite;
   private waveText!: Phaser.GameObjects.Text;
   private skillButtons: SkillButton[] = [];
@@ -95,6 +95,11 @@ export class BattleScene extends Phaser.Scene {
 
   constructor() {
     super('Battle');
+  }
+
+  preload() {
+    // this battle's background pictures, if drawn (loaded on demand, not at startup)
+    preloadField(this, (this.sys.settings.data as { scenarioId: string }).scenarioId);
   }
 
   create(data: { scenarioId: string }) {
@@ -114,7 +119,7 @@ export class BattleScene extends Phaser.Scene {
     this.speed = prefs.speed;
     this.useRig = prefs.rig;
 
-    ({ far: this.bgFar, near: this.bgNear, ground: this.bgGround } = drawField(this));
+    ({ far: this.bgFar, near: this.bgNear, ground: this.bgGround } = drawField(this, this.sc.id));
 
     this.createHeader();
     this.createPanel();
@@ -365,14 +370,14 @@ export class BattleScene extends Phaser.Scene {
 
   private scrollBackground(duration: number) {
     const o = { t: 0 };
-    const start = [this.bgFar.tilePositionX, this.bgNear.tilePositionX, this.bgGround.tilePositionX];
+    const start = [this.bgFar.tilePositionX, this.bgNear?.tilePositionX ?? 0, this.bgGround.tilePositionX];
     this.tweens.add({
       targets: o,
       t: 1,
       duration,
       onUpdate: () => {
         this.bgFar.tilePositionX = start[0] + o.t * 60;
-        this.bgNear.tilePositionX = start[1] + o.t * 160;
+        if (this.bgNear) this.bgNear.tilePositionX = start[1] + o.t * 160;
         this.bgGround.tilePositionX = start[2] + o.t * 300;
       },
     });
