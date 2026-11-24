@@ -81,12 +81,30 @@ for (let x = 0; x < w; x++) border.push(x, N - w + x);
 for (let y = 0; y < h; y++) border.push(y * w, y * w + w - 1);
 flood(border, whiteish, bg);
 
-// 2) large enclosed white holes
+// 2) large enclosed white holes (gaps between an arm and the body…). Eye whites, teeth, blade shine
+// and white cloth are enclosed white too, so: portraits keep every hole, and each removed hole is
+// listed with its position — check them (tools/fill-holes.mjs puts a wrong one back).
 const visited = new Uint8Array(N);
+const removedHoles = [];
 for (let i = 0; i < N; i++) {
   if (bg[i] || visited[i] || !whiteish(i)) continue;
   const region = flood([i], (j) => !bg[j] && whiteish(j), visited);
-  if (region.length > 400) for (const j of region) bg[j] = 1;
+  if (region.length > 400) {
+    let sx = 0;
+    let sy = 0;
+    for (const j of region) {
+      sx += j % w;
+      sy += (j / w) | 0;
+    }
+    removedHoles.push({ region, x: Math.round(sx / region.length), y: Math.round(sy / region.length) });
+  }
+}
+const cellName = (x, y) => names[Math.min(rows - 1, Math.floor((y / h) * rows)) * cols + Math.min(cols - 1, Math.floor((x / w) * cols))];
+for (const hole of removedHoles) {
+  const name = cellName(hole.x, hole.y).split(':')[0];
+  if (name === 'portrait') continue; // faces: enclosed white is eyes and teeth
+  for (const j of hole.region) bg[j] = 1;
+  console.log(`  hole removed in ${name} near (${hole.x},${hole.y}) on the sheet, ${hole.region.length}px — check it's not an eye, teeth or a blade`);
 }
 
 // 3) foreground blobs → quadrants
