@@ -23,7 +23,7 @@ import { button, type Button, COLOR, FONT, H, hd, RES, setButtonLabel, text, W }
 import type { ResultData } from './ResultScene';
 import { drawField, FIELD_TOP, PANEL_Y } from '../ui/field';
 import { cellSpot } from '../core/formation';
-import { readPrefs, writePrefs } from '../ui/prefs';
+import { readPrefs, SPEEDS, writePrefs } from '../ui/prefs';
 import { hasRig, Rig } from '../ui/rig';
 import { addSprite, artKey, ATTACK_POSES, CHAR_SCALE, hasArt, hasPose, playRun, setPose, SPRITE_H, type Pose } from '../data/art';
 import { enemyHeight, pickEnemyArt } from '../data/enemyArt';
@@ -75,7 +75,7 @@ export class BattleScene extends Phaser.Scene {
   private wave = 0;
   private views = new Map<string, View>();
   private auto = true;
-  private fast = false;
+  private speed = 1;
   private useRig = true;
   private over = false;
 
@@ -111,7 +111,7 @@ export class BattleScene extends Phaser.Scene {
     this.over = false;
     const prefs = readPrefs();
     this.auto = prefs.auto;
-    this.fast = prefs.fast;
+    this.speed = prefs.speed;
     this.useRig = prefs.rig;
 
     ({ far: this.bgFar, near: this.bgNear, ground: this.bgGround } = drawField(this));
@@ -222,20 +222,21 @@ export class BattleScene extends Phaser.Scene {
 
   private toggleAuto() {
     this.auto = !this.auto;
-    writePrefs({ auto: this.auto, fast: this.fast });
+    writePrefs({ auto: this.auto, speed: this.speed });
     setButtonLabel(this.autoBtn, this.autoLabel());
     if (this.auto && this.pending) this.resolvePending(chooseAction(this.b, this.pending.actor));
     else this.refresh(this.pending?.actor ?? null);
   }
 
   private toggleSpeed() {
-    this.fast = !this.fast;
-    writePrefs({ auto: this.auto, fast: this.fast });
+    // x1 → x2 → x3 → x1
+    this.speed = SPEEDS[(SPEEDS.indexOf(this.speed) + 1) % SPEEDS.length];
+    writePrefs({ auto: this.auto, speed: this.speed });
     this.applySpeed();
   }
 
   private applySpeed() {
-    const s = this.fast ? 2 : 1;
+    const s = this.speed;
     this.time.timeScale = s;
     this.tweens.timeScale = s;
     for (const v of this.views?.values() ?? []) v.rig?.setSpeed(s);
@@ -478,7 +479,7 @@ export class BattleScene extends Phaser.Scene {
     } else if (v.sprite) {
       v.sprite.setFlipX(back);
       playRun(v.sprite, v.artId ?? id, puff);
-      v.sprite.anims.timeScale = this.fast ? 2 : 1;
+      v.sprite.anims.timeScale = this.speed;
     } else return;
     v.running = true;
   }
@@ -635,7 +636,7 @@ export class BattleScene extends Phaser.Scene {
       // the rig is slimmer than the frame art, so it stands a little taller to read the same size
       rig = new Rig(this, f.id, SPRITE_H * 1.12);
       rig.root.setPosition(0, r + 4);
-      rig.setSpeed(this.fast ? 2 : 1);
+      rig.setSpeed(this.speed);
       // tap area in rig units (the rig root is scaled down)
       const k = 1 / rig.root.scaleY;
       rig.root.setInteractive(new Phaser.Geom.Rectangle(-20 * k, -SPRITE_H * k, 40 * k, (SPRITE_H + 4) * k), Phaser.Geom.Rectangle.Contains);

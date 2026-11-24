@@ -2,16 +2,23 @@ const KEY = 'peach-garden.prefs';
 
 export interface Prefs {
   auto: boolean;
-  fast: boolean;
+  /** battle speed: 1, 2 or 3 */
+  speed: number;
   /** draw generals that have a cutout rig with it (false = frame-by-frame art) */
   rig: boolean;
 }
 
-const DEFAULTS: Prefs = { auto: true, fast: false, rig: true };
+const DEFAULTS: Prefs = { auto: true, speed: 1, rig: true };
+export const SPEEDS = [1, 2, 3];
 
 export function readPrefs(): Prefs {
   try {
-    return { ...DEFAULTS, ...JSON.parse(localStorage.getItem(KEY) ?? '{}') };
+    const saved = JSON.parse(localStorage.getItem(KEY) ?? '{}');
+    // older saves stored a fast on/off flag
+    if (saved.speed === undefined && saved.fast) saved.speed = 2;
+    const p: Prefs = { ...DEFAULTS, ...saved };
+    if (!SPEEDS.includes(p.speed)) p.speed = 1;
+    return p;
   } catch {
     return { ...DEFAULTS };
   }
