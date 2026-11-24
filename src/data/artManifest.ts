@@ -4,6 +4,7 @@ export const ART_FILES: Record<string, string[]> = {
   "archer_hunter": ['attack', 'down', 'hurt', 'idle'],
   "archer_xbow": ['attack', 'down', 'hurt', 'idle'],
   "brute_farmhand": ['attack', 'down', 'hurt', 'idle'],
+  "brute_iron": ['attack', 'down', 'hurt', 'idle'],
   "chengyuanzhi": ['attack', 'idle', 'portrait', 'special'],
   "chieftain": ['attack', 'idle', 'portrait', 'special'],
   "dengmao": ['attack', 'idle', 'portrait', 'special'],
