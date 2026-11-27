@@ -543,8 +543,9 @@ export class BattleScene extends Phaser.Scene {
           this.floatAt(v.c.x, v.c.y - 20, '기절!', '#e0d0ff', 15);
           break;
         case 'death': {
-          const down = !!(v.sprite && v.artId && hasPose(v.artId, 'down'));
-          if (down) setPose(v.sprite!, v.artId!, 'down');
+          const down = !!(v.sprite && v.artId && hasPose(v.artId, 'down')) || !!v.rig;
+          if (v.rig) v.rig.die();
+          else if (down) setPose(v.sprite!, v.artId!, 'down');
           this.tweens.add({ targets: v.c, alpha: 0, y: v.c.y + 10, duration: 450, delay: down ? 450 : 150 });
           if (f.side === 'player') {
             this.fallen.push(f.name);
@@ -640,13 +641,12 @@ export class BattleScene extends Phaser.Scene {
   private createView(f: Fighter) {
     const fill = f.side === 'player' ? COLOR.player : f.isBoss ? COLOR.boss : COLOR.enemy;
     const r = radius(f);
-    const useRig = f.side === 'player' && this.useRig && hasRig(this, f.id);
     const enemyType = f.id.split('-')[2] ?? f.id;
     const stage = SCENARIO_ORDER.indexOf(this.sc.id) + 1;
-    const artId =
-      useRig ? undefined
-      : f.side === 'player' ? (hasArt(this, f.id) ? f.id : undefined)
-      : pickEnemyArt(enemyType, stage, (a) => hasArt(this, a), Math.random) ?? undefined;
+    // which character drawing: the general's own, or one of the stage's looks for an enemy type
+    const lookId = f.side === 'player' ? f.id : pickEnemyArt(enemyType, stage, (a) => hasArt(this, a) || hasRig(this, a), Math.random) ?? undefined;
+    const useRig = this.useRig && !!lookId && hasRig(this, lookId);
+    const artId = useRig ? undefined : lookId && hasArt(this, lookId) ? lookId : undefined;
     const art = !!artId;
     const height = f.side === 'player' ? SPRITE_H : enemyHeight(enemyType, !!f.isBoss);
     let rig: Rig | undefined;
@@ -662,7 +662,7 @@ export class BattleScene extends Phaser.Scene {
       ring = this.add.ellipse(0, r + 2, sr * 2 + 14, 11).setStrokeStyle(3, 0xffe08a).setVisible(false);
       const shadow = this.add.ellipse(0, r + 2, sr * 2, 7, 0x000000, 0.35);
       // the rig is slimmer than the frame art, so it stands a little taller to read the same size
-      rig = new Rig(this, f.id, SPRITE_H * 1.12);
+      rig = new Rig(this, lookId!, (f.side === 'player' ? SPRITE_H : enemyHeight(enemyType, !!f.isBoss)) * 1.12, f.side === 'enemy');
       rig.root.setPosition(0, r + 4);
       rig.setSpeed(this.speed);
       // tap area in rig units (the rig root is scaled down)

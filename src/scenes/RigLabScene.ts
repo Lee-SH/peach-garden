@@ -9,8 +9,9 @@ export class RigLabScene extends Phaser.Scene {
     super('RigLab');
   }
 
-  create(data: { id?: string; size?: number }) {
+  create(data: { id?: string; size?: number; ids?: string[]; pose?: string }) {
     hd(this);
+    if (data.ids) return this.lineup(data.ids, data.size ?? 110, data.pose);
     const id = data.id ?? 'liubei';
     const size = data.size ?? 150;
     const { rest: REST, run: runPose, moves: MOVES, raise: RAISE } = STYLES[RIGS[id]().weapon];
@@ -25,6 +26,7 @@ export class RigLabScene extends Phaser.Scene {
       ['raise', (r) => void r.hold(RAISE, 1)],
     ];
     const cols = 4;
+    void 0;
     poses.forEach(([name, apply], i) => {
       const x = 50 + (i % cols) * 87;
       const y = 175 + Math.floor(i / cols) * 160;
@@ -33,6 +35,22 @@ export class RigLabScene extends Phaser.Scene {
       apply(r);
       this.add.line(0, 0, x - 40, y, x + 40, y, 0xff0000).setOrigin(0);
       text(this, x, y + 8, name, 10, COLOR.text).setOrigin(0.5, 0);
+    });
+  }
+
+  /** Several characters side by side in one pose (rest by default), each facing the way it fights. */
+  private lineup(ids: string[], size: number, pose?: string) {
+    this.add.rectangle(0, 0, W, 640, 0x6b5a3c).setOrigin(0);
+    ids.forEach((id, i) => {
+      const x = 46 + (i % 4) * 89;
+      const y = 175 + Math.floor(i / 4) * 150;
+      const left = !['liubei', 'guanyu', 'zhangfei'].includes(id);
+      const r = new Rig(this, id, size * 0.6, left);
+      r.root.setPosition(x, y);
+      const st = STYLES[RIGS[id]().weapon];
+      const m = pose && st.moves[pose];
+      void r.hold(m ? m.strike : st.rest, 1);
+      text(this, x, y + 6, id, 9, COLOR.text).setOrigin(0.5, 0);
     });
   }
 }

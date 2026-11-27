@@ -41,11 +41,16 @@ export class Rig {
   private tween?: Phaser.Tweens.Tween;
   private readonly onUpdate: (time: number, delta: number) => void;
 
+  /** which way the character faces when standing (enemies face left, toward the heroes) */
+  private homeLeft = false;
+
   constructor(
     private scene: Phaser.Scene,
     id: string,
     height: number,
+    faceLeft = false,
   ) {
+    this.homeLeft = faceLeft;
     this.def = RIGS[id]();
     this.style = STYLES[this.def.weapon];
     this.cur = { ...this.style.rest };
@@ -71,6 +76,7 @@ export class Rig {
     this.onUpdate = (_t, delta) => this.update(delta);
     scene.events.on(Phaser.Scenes.Events.UPDATE, this.onUpdate);
     this.root.once(Phaser.GameObjects.Events.DESTROY, () => scene.events.off(Phaser.Scenes.Events.UPDATE, this.onUpdate));
+    this.setFacing(faceLeft);
     this.layout();
   }
 
@@ -85,13 +91,14 @@ export class Rig {
 
   idle() {
     this.stopTween();
-    this.setFacing(false);
+    this.setFacing(this.homeLeft);
     this.mode = 'idle';
   }
 
+  /** `back` = running away from the enemy (returning to the home spot) */
   run(back = false) {
     this.stopTween();
-    this.setFacing(back);
+    this.setFacing(back ? !this.homeLeft : this.homeLeft);
     this.mode = 'run';
   }
 
@@ -111,6 +118,9 @@ export class Rig {
 
   /** Wind up and strike; resolves at the moment of impact (the pose is then held). */
   async attack(move: string) {
+    // enemies ask for 'attack' (a plain hit) or 'special' (their big skill)
+    if (move === 'attack') move = Math.random() < 0.5 ? 'atk1' : 'atk2';
+    if (move === 'special') move = 'atk3';
     const m = this.style.moves[move] ?? this.style.moves.atk1;
     this.mode = 'hold';
     await this.tweenTo({ ...this.style.rest, ...m.wind }, m.windMs, 'Quad.easeOut');
@@ -119,6 +129,15 @@ export class Rig {
       this.scene.tweens.add({ targets: this.root, scaleX: -sx, duration: m.strikeMs / 2, yoyo: true, ease: 'Sine.easeInOut' });
     }
     await this.tweenTo({ ...this.style.rest, ...m.strike }, m.strikeMs, 'Quad.easeIn');
+  }
+
+  /** Fall over backwards and lie still (the battle fades the view out). */
+  die() {
+    this.stopTween();
+    this.mode = 'hold';
+    void this.tweenTo({ ...this.style.flinch, torso: -30, head: -25, lF1: -40, lB1: -20, bodyY: 0 }, 160, 'Quad.easeOut');
+    // backwards = away from the way the character faces
+    this.scene.tweens.add({ targets: this.root, angle: this.homeLeft ? 80 : -80, duration: 420, ease: 'Quad.easeIn', delay: 120 });
   }
 
   /** Quick flinch, then back to whatever was playing. */

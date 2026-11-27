@@ -266,5 +266,1413 @@ export const RIG_MANIFEST: Record<string, AutoRig> = {
     ],
     "hipHeight": 383,
     "height": 727
+  },
+  "rebel_farmer": {
+    "style": "polearm",
+    "parts": {
+      "upperarm": {
+        "pivot": [
+          15.5,
+          4.8
+        ],
+        "tip": [
+          9.4,
+          74.5
+        ]
+      },
+      "forearm": {
+        "pivot": [
+          10.5,
+          3.8
+        ],
+        "tip": [
+          26.9,
+          67.7
+        ]
+      },
+      "thigh": {
+        "pivot": [
+          20.2,
+          4.9
+        ],
+        "tip": [
+          17.8,
+          93.9
+        ]
+      },
+      "shin": {
+        "pivot": [
+          22.5,
+          5.4
+        ],
+        "tip": [
+          17.7,
+          107.9
+        ]
+      },
+      "torso": {
+        "pivot": [
+          49.7,
+          117.3
+        ]
+      },
+      "head": {
+        "pivot": [
+          44.4,
+          71.4
+        ]
+      },
+      "skirt": {
+        "pivot": [
+          43.7,
+          3.3
+        ]
+      },
+      "weapon": {
+        "pivot": [
+          14.3,
+          290
+        ]
+      }
+    },
+    "neck": [
+      -16.7,
+      -224.4
+    ],
+    "shoulderB": [
+      -58.6,
+      -183.7
+    ],
+    "shoulderF": [
+      20.7,
+      -183.7
+    ],
+    "legX": 17.7,
+    "skirtAt": [
+      0,
+      -18
+    ],
+    "hipHeight": 383,
+    "height": 751
+  },
+  "rebel_bandit": {
+    "style": "single",
+    "parts": {
+      "upperarm": {
+        "pivot": [
+          23.6,
+          4.7
+        ],
+        "tip": [
+          12.4,
+          73.8
+        ]
+      },
+      "forearm": {
+        "pivot": [
+          11,
+          3.7
+        ],
+        "tip": [
+          33.3,
+          65.8
+        ]
+      },
+      "thigh": {
+        "pivot": [
+          24.8,
+          4.9
+        ],
+        "tip": [
+          22.8,
+          93.9
+        ]
+      },
+      "shin": {
+        "pivot": [
+          23.7,
+          5.4
+        ],
+        "tip": [
+          21.2,
+          107.9
+        ]
+      },
+      "torso": {
+        "pivot": [
+          57.9,
+          117.5
+        ]
+      },
+      "head": {
+        "pivot": [
+          33.2,
+          71.4
+        ]
+      },
+      "skirt": {
+        "pivot": [
+          54,
+          4.1
+        ]
+      },
+      "weapon": {
+        "pivot": [
+          13.3,
+          130
+        ]
+      }
+    },
+    "neck": [
+      -9.6,
+      -224.8
+    ],
+    "shoulderB": [
+      -59.8,
+      -184.1
+    ],
+    "shoulderF": [
+      23.8,
+      -184.1
+    ],
+    "legX": 29.3,
+    "skirtAt": [
+      0,
+      -18
+    ],
+    "hipHeight": 383,
+    "height": 751
+  },
+  "rebel_elite": {
+    "style": "single",
+    "parts": {
+      "upperarm": {
+        "pivot": [
+          18.6,
+          4.8
+        ],
+        "tip": [
+          16.4,
+          74.7
+        ]
+      },
+      "forearm": {
+        "pivot": [
+          11.8,
+          3.8
+        ],
+        "tip": [
+          21.1,
+          69.2
+        ]
+      },
+      "thigh": {
+        "pivot": [
+          19.7,
+          4.9
+        ],
+        "tip": [
+          20.9,
+          93.9
+        ]
+      },
+      "shin": {
+        "pivot": [
+          22.3,
+          5.4
+        ],
+        "tip": [
+          18.8,
+          107.9
+        ]
+      },
+      "torso": {
+        "pivot": [
+          43.3,
+          117.6
+        ]
+      },
+      "head": {
+        "pivot": [
+          29.3,
+          71.4
+        ]
+      },
+      "skirt": {
+        "pivot": [
+          52.5,
+          3.2
+        ]
+      },
+      "weapon": {
+        "pivot": [
+          13.2,
+          130
+        ]
+      }
+    },
+    "neck": [
+      1.2,
+      -225
+    ],
+    "shoulderB": [
+      -42.1,
+      -183.9
+    ],
+    "shoulderF": [
+      40.1,
+      -183.9
+    ],
+    "legX": 32.3,
+    "skirtAt": [
+      0,
+      -18
+    ],
+    "hipHeight": 383,
+    "height": 751
+  },
+  "archer_hunter": {
+    "style": "single",
+    "parts": {
+      "upperarm": {
+        "pivot": [
+          19.3,
+          4.8
+        ],
+        "tip": [
+          20.2,
+          74.8
+        ]
+      },
+      "forearm": {
+        "pivot": [
+          14.7,
+          3.8
+        ],
+        "tip": [
+          25.2,
+          69
+        ]
+      },
+      "thigh": {
+        "pivot": [
+          18.7,
+          4.9
+        ],
+        "tip": [
+          25.1,
+          93.7
+        ]
+      },
+      "shin": {
+        "pivot": [
+          26.5,
+          5.4
+        ],
+        "tip": [
+          17.5,
+          107.9
+        ]
+      },
+      "torso": {
+        "pivot": [
+          57.1,
+          108.5
+        ]
+      },
+      "head": {
+        "pivot": [
+          39.4,
+          71.4
+        ]
+      },
+      "skirt": {
+        "pivot": [
+          47.8,
+          3.9
+        ]
+      },
+      "weapon": {
+        "pivot": [
+          4.7,
+          130
+        ]
+      }
+    },
+    "neck": [
+      -86.6,
+      -207.7
+    ],
+    "shoulderB": [
+      -63.4,
+      -170
+    ],
+    "shoulderF": [
+      7.8,
+      -170
+    ],
+    "legX": 26.6,
+    "skirtAt": [
+      0,
+      -18
+    ],
+    "hipHeight": 383,
+    "height": 751
+  },
+  "archer_xbow": {
+    "style": "single",
+    "parts": {
+      "upperarm": {
+        "pivot": [
+          19.9,
+          4.8
+        ],
+        "tip": [
+          20.2,
+          74.8
+        ]
+      },
+      "forearm": {
+        "pivot": [
+          13.5,
+          3.7
+        ],
+        "tip": [
+          32.2,
+          67
+        ]
+      },
+      "thigh": {
+        "pivot": [
+          22.5,
+          4.9
+        ],
+        "tip": [
+          36.1,
+          92.8
+        ]
+      },
+      "shin": {
+        "pivot": [
+          22.4,
+          5.4
+        ],
+        "tip": [
+          17.2,
+          107.9
+        ]
+      },
+      "torso": {
+        "pivot": [
+          55.7,
+          117.4
+        ]
+      },
+      "head": {
+        "pivot": [
+          28.6,
+          71.4
+        ]
+      },
+      "skirt": {
+        "pivot": [
+          57.3,
+          3.8
+        ]
+      },
+      "weapon": {
+        "pivot": [
+          52.9,
+          130
+        ]
+      }
+    },
+    "neck": [
+      -13.4,
+      -224.6
+    ],
+    "shoulderB": [
+      -61.3,
+      -183.6
+    ],
+    "shoulderF": [
+      34.3,
+      -183.6
+    ],
+    "legX": 30.2,
+    "skirtAt": [
+      0,
+      -18
+    ],
+    "hipHeight": 383,
+    "height": 751
+  },
+  "sorc_talisman": {
+    "style": "single",
+    "parts": {
+      "upperarm": {
+        "pivot": [
+          22,
+          4.8
+        ],
+        "tip": [
+          24.7,
+          74.7
+        ]
+      },
+      "forearm": {
+        "pivot": [
+          13.1,
+          3.8
+        ],
+        "tip": [
+          23.3,
+          69.1
+        ]
+      },
+      "thigh": {
+        "pivot": [
+          26,
+          4.9
+        ],
+        "tip": [
+          22.4,
+          93.9
+        ]
+      },
+      "shin": {
+        "pivot": [
+          23.9,
+          5.4
+        ],
+        "tip": [
+          20.7,
+          107.9
+        ]
+      },
+      "torso": {
+        "pivot": [
+          49.8,
+          117.5
+        ]
+      },
+      "head": {
+        "pivot": [
+          27.4,
+          71.4
+        ]
+      },
+      "skirt": {
+        "pivot": [
+          51.1,
+          4.3
+        ]
+      },
+      "weapon": {
+        "pivot": [
+          16,
+          130
+        ]
+      }
+    },
+    "neck": [
+      -10.6,
+      -224.7
+    ],
+    "shoulderB": [
+      -55.2,
+      -184.2
+    ],
+    "shoulderF": [
+      30.2,
+      -184.2
+    ],
+    "legX": 27.9,
+    "skirtAt": [
+      0,
+      -18
+    ],
+    "hipHeight": 383,
+    "height": 751
+  },
+  "sorc_fire": {
+    "style": "polearm",
+    "parts": {
+      "upperarm": {
+        "pivot": [
+          23,
+          4.8
+        ],
+        "tip": [
+          18.5,
+          74.6
+        ]
+      },
+      "forearm": {
+        "pivot": [
+          13.8,
+          3.8
+        ],
+        "tip": [
+          27.2,
+          68.4
+        ]
+      },
+      "thigh": {
+        "pivot": [
+          27.3,
+          4.9
+        ],
+        "tip": [
+          28.6,
+          93.9
+        ]
+      },
+      "shin": {
+        "pivot": [
+          22.5,
+          5.4
+        ],
+        "tip": [
+          18.7,
+          107.9
+        ]
+      },
+      "torso": {
+        "pivot": [
+          51.5,
+          117.6
+        ]
+      },
+      "head": {
+        "pivot": [
+          40.1,
+          71.4
+        ]
+      },
+      "skirt": {
+        "pivot": [
+          56.1,
+          3.8
+        ]
+      },
+      "weapon": {
+        "pivot": [
+          38.1,
+          290
+        ]
+      }
+    },
+    "neck": [
+      -3.3,
+      -225
+    ],
+    "shoulderB": [
+      -53.6,
+      -184.2
+    ],
+    "shoulderF": [
+      42.6,
+      -184.2
+    ],
+    "legX": 31.2,
+    "skirtAt": [
+      0,
+      -18
+    ],
+    "hipHeight": 383,
+    "height": 751
+  },
+  "brute_farmhand": {
+    "style": "single",
+    "parts": {
+      "upperarm": {
+        "pivot": [
+          14.4,
+          4.8
+        ],
+        "tip": [
+          18.7,
+          74.6
+        ]
+      },
+      "forearm": {
+        "pivot": [
+          10.9,
+          3.9
+        ],
+        "tip": [
+          18.4,
+          69.4
+        ]
+      },
+      "thigh": {
+        "pivot": [
+          13,
+          4.9
+        ],
+        "tip": [
+          10.3,
+          93.9
+        ]
+      },
+      "shin": {
+        "pivot": [
+          29.2,
+          5.4
+        ],
+        "tip": [
+          33.6,
+          107.9
+        ]
+      },
+      "torso": {
+        "pivot": [
+          33.8,
+          116.5
+        ]
+      },
+      "head": {
+        "pivot": [
+          31.5,
+          71.4
+        ]
+      },
+      "skirt": {
+        "pivot": [
+          48,
+          4.2
+        ]
+      },
+      "weapon": {
+        "pivot": [
+          14.4,
+          130
+        ]
+      }
+    },
+    "neck": [
+      30.5,
+      -222.9
+    ],
+    "shoulderB": [
+      -8.6,
+      -182.7
+    ],
+    "shoulderF": [
+      79.9,
+      -182.7
+    ],
+    "legX": 16.2,
+    "skirtAt": [
+      0,
+      -18
+    ],
+    "hipHeight": 383,
+    "height": 751
+  },
+  "brute_iron": {
+    "style": "polearm",
+    "parts": {
+      "upperarm": {
+        "pivot": [
+          23,
+          4.8
+        ],
+        "tip": [
+          20.4,
+          74.7
+        ]
+      },
+      "forearm": {
+        "pivot": [
+          15,
+          3.8
+        ],
+        "tip": [
+          24.5,
+          69.2
+        ]
+      },
+      "thigh": {
+        "pivot": [
+          27,
+          4.9
+        ],
+        "tip": [
+          27.9,
+          93.9
+        ]
+      },
+      "shin": {
+        "pivot": [
+          24.1,
+          5.4
+        ],
+        "tip": [
+          20.2,
+          107.9
+        ]
+      },
+      "torso": {
+        "pivot": [
+          63.4,
+          117.4
+        ]
+      },
+      "head": {
+        "pivot": [
+          32.6,
+          71.4
+        ]
+      },
+      "skirt": {
+        "pivot": [
+          52,
+          3.5
+        ]
+      },
+      "weapon": {
+        "pivot": [
+          62.2,
+          190
+        ]
+      }
+    },
+    "neck": [
+      -14.6,
+      -224.5
+    ],
+    "shoulderB": [
+      -63.3,
+      -183.5
+    ],
+    "shoulderF": [
+      32.8,
+      -183.5
+    ],
+    "legX": 34,
+    "skirtAt": [
+      0,
+      -18
+    ],
+    "hipHeight": 383,
+    "height": 751
+  },
+  "dengmao": {
+    "style": "polearm",
+    "parts": {
+      "upperarm": {
+        "pivot": [
+          24.1,
+          4.8
+        ],
+        "tip": [
+          28.9,
+          74.6
+        ]
+      },
+      "forearm": {
+        "pivot": [
+          14.7,
+          3.8
+        ],
+        "tip": [
+          23.5,
+          69.3
+        ]
+      },
+      "thigh": {
+        "pivot": [
+          29.2,
+          4.9
+        ],
+        "tip": [
+          30.4,
+          93.9
+        ]
+      },
+      "shin": {
+        "pivot": [
+          29.5,
+          5.4
+        ],
+        "tip": [
+          18.3,
+          107.9
+        ]
+      },
+      "torso": {
+        "pivot": [
+          42.7,
+          117.6
+        ]
+      },
+      "head": {
+        "pivot": [
+          28.3,
+          71.4
+        ]
+      },
+      "skirt": {
+        "pivot": [
+          54.3,
+          3.5
+        ]
+      },
+      "weapon": {
+        "pivot": [
+          26.5,
+          215
+        ]
+      }
+    },
+    "neck": [
+      -4.6,
+      -225
+    ],
+    "shoulderB": [
+      -42.1,
+      -183.9
+    ],
+    "shoulderF": [
+      32.9,
+      -183.9
+    ],
+    "legX": 31.1,
+    "skirtAt": [
+      0,
+      -18
+    ],
+    "hipHeight": 383,
+    "height": 751
+  },
+  "chengyuanzhi": {
+    "style": "single",
+    "parts": {
+      "upperarm": {
+        "pivot": [
+          22.6,
+          4.7
+        ],
+        "tip": [
+          29.5,
+          74.4
+        ]
+      },
+      "forearm": {
+        "pivot": [
+          16.4,
+          3.8
+        ],
+        "tip": [
+          26,
+          69.1
+        ]
+      },
+      "thigh": {
+        "pivot": [
+          21.8,
+          4.9
+        ],
+        "tip": [
+          27.3,
+          93.8
+        ]
+      },
+      "shin": {
+        "pivot": [
+          23.3,
+          5.4
+        ],
+        "tip": [
+          20.7,
+          107.9
+        ]
+      },
+      "torso": {
+        "pivot": [
+          43.8,
+          117.6
+        ]
+      },
+      "head": {
+        "pivot": [
+          34.4,
+          71.4
+        ]
+      },
+      "skirt": {
+        "pivot": [
+          52.8,
+          3.6
+        ]
+      },
+      "weapon": {
+        "pivot": [
+          8.8,
+          130
+        ]
+      }
+    },
+    "neck": [
+      -6.7,
+      -224.9
+    ],
+    "shoulderB": [
+      -45.4,
+      -183.8
+    ],
+    "shoulderF": [
+      30.4,
+      -183.8
+    ],
+    "legX": 33.5,
+    "skirtAt": [
+      0,
+      -18
+    ],
+    "hipHeight": 383,
+    "height": 751
+  },
+  "chieftain": {
+    "style": "twin",
+    "parts": {
+      "upperarm": {
+        "pivot": [
+          22.2,
+          4.8
+        ],
+        "tip": [
+          19.9,
+          74.7
+        ]
+      },
+      "forearm": {
+        "pivot": [
+          20.2,
+          3.6
+        ],
+        "tip": [
+          44.5,
+          64.9
+        ]
+      },
+      "thigh": {
+        "pivot": [
+          27.6,
+          4.9
+        ],
+        "tip": [
+          33.2,
+          93.8
+        ]
+      },
+      "shin": {
+        "pivot": [
+          22.4,
+          5.4
+        ],
+        "tip": [
+          21.2,
+          107.9
+        ]
+      },
+      "torso": {
+        "pivot": [
+          66.4,
+          115.8
+        ]
+      },
+      "head": {
+        "pivot": [
+          50.6,
+          71.4
+        ]
+      },
+      "skirt": {
+        "pivot": [
+          46,
+          3.4
+        ]
+      },
+      "weapon": {
+        "pivot": [
+          6.1,
+          120
+        ]
+      }
+    },
+    "neck": [
+      -39.7,
+      -221.5
+    ],
+    "shoulderB": [
+      -81,
+      -181
+    ],
+    "shoulderF": [
+      9,
+      -181
+    ],
+    "legX": 9.4,
+    "skirtAt": [
+      0,
+      -18
+    ],
+    "hipHeight": 383,
+    "height": 751
+  },
+  "zhangliang": {
+    "style": "polearm",
+    "parts": {
+      "upperarm": {
+        "pivot": [
+          28.5,
+          4.7
+        ],
+        "tip": [
+          18.9,
+          74.1
+        ]
+      },
+      "forearm": {
+        "pivot": [
+          19.3,
+          3.9
+        ],
+        "tip": [
+          24.4,
+          69.7
+        ]
+      },
+      "thigh": {
+        "pivot": [
+          31.2,
+          4.9
+        ],
+        "tip": [
+          28.3,
+          93.9
+        ]
+      },
+      "shin": {
+        "pivot": [
+          29.9,
+          5.4
+        ],
+        "tip": [
+          18.2,
+          107.9
+        ]
+      },
+      "torso": {
+        "pivot": [
+          45.3,
+          117.6
+        ]
+      },
+      "head": {
+        "pivot": [
+          27.6,
+          71.4
+        ]
+      },
+      "skirt": {
+        "pivot": [
+          58.5,
+          4.3
+        ]
+      },
+      "weapon": {
+        "pivot": [
+          27.2,
+          290
+        ]
+      }
+    },
+    "neck": [
+      -2.2,
+      -225
+    ],
+    "shoulderB": [
+      -43.7,
+      -184.3
+    ],
+    "shoulderF": [
+      43,
+      -184.3
+    ],
+    "legX": 32.1,
+    "skirtAt": [
+      0,
+      -18
+    ],
+    "hipHeight": 383,
+    "height": 751
+  },
+  "gaosheng": {
+    "style": "twin",
+    "parts": {
+      "upperarm": {
+        "pivot": [
+          19,
+          4.7
+        ],
+        "tip": [
+          26.1,
+          74.4
+        ]
+      },
+      "forearm": {
+        "pivot": [
+          12.8,
+          3.7
+        ],
+        "tip": [
+          30.1,
+          67.4
+        ]
+      },
+      "thigh": {
+        "pivot": [
+          23.9,
+          4.9
+        ],
+        "tip": [
+          30,
+          93.7
+        ]
+      },
+      "shin": {
+        "pivot": [
+          31.8,
+          5.4
+        ],
+        "tip": [
+          19.3,
+          107.9
+        ]
+      },
+      "torso": {
+        "pivot": [
+          56,
+          117.4
+        ]
+      },
+      "head": {
+        "pivot": [
+          24.2,
+          71.4
+        ]
+      },
+      "skirt": {
+        "pivot": [
+          50.7,
+          3.4
+        ]
+      },
+      "weapon": {
+        "pivot": [
+          15.3,
+          120
+        ]
+      }
+    },
+    "neck": [
+      -14.8,
+      -224.5
+    ],
+    "shoulderB": [
+      -64,
+      -183.4
+    ],
+    "shoulderF": [
+      24.6,
+      -183.4
+    ],
+    "legX": 30.4,
+    "skirtAt": [
+      0,
+      -18
+    ],
+    "hipHeight": 383,
+    "height": 751
+  },
+  "zhangbao": {
+    "style": "single",
+    "parts": {
+      "upperarm": {
+        "pivot": [
+          17.8,
+          4.8
+        ],
+        "tip": [
+          12.1,
+          74.5
+        ]
+      },
+      "forearm": {
+        "pivot": [
+          14.8,
+          3.9
+        ],
+        "tip": [
+          20.2,
+          69.6
+        ]
+      },
+      "thigh": {
+        "pivot": [
+          16.7,
+          4.9
+        ],
+        "tip": [
+          16.9,
+          93.9
+        ]
+      },
+      "shin": {
+        "pivot": [
+          22.2,
+          5.4
+        ],
+        "tip": [
+          19.8,
+          107.9
+        ]
+      },
+      "torso": {
+        "pivot": [
+          49.9,
+          117.5
+        ]
+      },
+      "head": {
+        "pivot": [
+          30.6,
+          71.4
+        ]
+      },
+      "skirt": {
+        "pivot": [
+          52.1,
+          3.8
+        ]
+      },
+      "weapon": {
+        "pivot": [
+          14.4,
+          130
+        ]
+      }
+    },
+    "neck": [
+      -9,
+      -224.8
+    ],
+    "shoulderB": [
+      -52.1,
+      -184.1
+    ],
+    "shoulderF": [
+      34.8,
+      -184.1
+    ],
+    "legX": 28.7,
+    "skirtAt": [
+      0,
+      -18
+    ],
+    "hipHeight": 383,
+    "height": 751
+  },
+  "zhangjue": {
+    "style": "polearm",
+    "parts": {
+      "upperarm": {
+        "pivot": [
+          21.7,
+          4.8
+        ],
+        "tip": [
+          20.1,
+          74.8
+        ]
+      },
+      "forearm": {
+        "pivot": [
+          11.6,
+          3.8
+        ],
+        "tip": [
+          22,
+          69
+        ]
+      },
+      "thigh": {
+        "pivot": [
+          30.5,
+          4.9
+        ],
+        "tip": [
+          24.3,
+          93.7
+        ]
+      },
+      "shin": {
+        "pivot": [
+          22.4,
+          5.4
+        ],
+        "tip": [
+          20.2,
+          107.9
+        ]
+      },
+      "torso": {
+        "pivot": [
+          52.3,
+          117.5
+        ]
+      },
+      "head": {
+        "pivot": [
+          37.8,
+          71.4
+        ]
+      },
+      "skirt": {
+        "pivot": [
+          56.6,
+          5.3
+        ]
+      },
+      "weapon": {
+        "pivot": [
+          35.3,
+          290
+        ]
+      }
+    },
+    "neck": [
+      -8.6,
+      -224.8
+    ],
+    "shoulderB": [
+      -54.3,
+      -184.1
+    ],
+    "shoulderF": [
+      36.2,
+      -184.1
+    ],
+    "legX": 29.9,
+    "skirtAt": [
+      0,
+      -18
+    ],
+    "hipHeight": 383,
+    "height": 751
   }
 };

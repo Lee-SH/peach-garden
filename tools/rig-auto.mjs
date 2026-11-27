@@ -31,6 +31,9 @@ const num = (flag, def) => {
   return i >= 0 ? Number(args.splice(i, 2)[1]) : def;
 };
 const headK = num('--head', 1);
+// --wlen N: weapon length grip→tip in rig units; --grip F: grip position on the weapon image (from the top)
+const wlen = num('--wlen', 0);
+const gripAt = num('--grip', 0);
 const neckAt = num('--neck', 0);
 // --order head,torso,...: the drawings in reading order when the sheet has extras (name them "skip")
 const oi = args.indexOf('--order');
@@ -157,8 +160,9 @@ save('skirt', skirt, tScale, [centre(skirt, 0, 0.08), skirt.height * 0.03]);
 
 // weapon: vertical, tip up; pivot at the grip
 const weapon = load('weapon');
-const wGrip = [centre(weapon, GRIP - 0.03, GRIP + 0.03), weapon.height * GRIP];
-const wScale = T.weapon / wGrip[1];
+const grip = gripAt || GRIP;
+const wGrip = [centre(weapon, grip - 0.03, grip + 0.03), weapon.height * grip];
+const wScale = (wlen || T.weapon) / wGrip[1];
 save('weapon', weapon, wScale, wGrip);
 
 const hipHeight = T.thigh + T.shin;

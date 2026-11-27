@@ -183,17 +183,11 @@ if (byOrder) {
   const ordered = rowsOf.flatMap((r) => r.sort((a, b) => a.x0 + a.x1 - (b.x0 + b.x1)));
   const slot = new Map();
   ordered.forEach((g, q) => g.ids.forEach((id) => slot.set(id, q)));
-  // leftovers (small specks) go with the nearest drawing
+  // leftovers: specks right next to a drawing belong to it; anything farther (stray text labels) is dropped
   boxes.forEach((b, id) => {
     if (!keep[id] || slot.has(id)) return;
-    const c = [(b.x0 + b.x1) / 2, (b.y0 + b.y1) / 2];
-    let best = 0;
-    let bd = Infinity;
-    ordered.forEach((g, q) => {
-      const d = Math.hypot(c[0] - (g.x0 + g.x1) / 2, c[1] - cy(g));
-      if (d < bd) [bd, best] = [d, q];
-    });
-    slot.set(id, best);
+    const q = ordered.findIndex((g) => near(g, b, 3));
+    if (q >= 0) slot.set(id, q);
   });
   const idOf = new Map(boxes.map((b, id) => [b, id]));
   quadOf = (b) => slot.get(idOf.get(b)) ?? -1;
