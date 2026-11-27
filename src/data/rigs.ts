@@ -22,6 +22,8 @@ export interface PartDef {
   tip?: Vec;
   /** multiply colour (back limbs a little darker) */
   tint?: number;
+  /** extra width (across the limb), for stockier figures */
+  sx?: number;
 }
 
 export type BoneName =
@@ -138,7 +140,9 @@ const STORE = 2;
 
 /** Build a rig from auto-measured parts (style B: realistic proportions, one thigh image for both legs). */
 export function buildAutoRig(m: AutoRig): RigDef {
-  const part = (img: string, tint?: number): PartDef => ({ img, scale: STORE, pivot: m.parts[img].pivot, tip: m.parts[img].tip, tint });
+  // body parts drawn a little wider than the sheet: realistic AI figures look thin at this size
+  const WIDE: Record<string, number> = { torso: 1.12, skirt: 1.12, upperarm: 1.15, forearm: 1.15, thigh: 1.18, shin: 1.12 };
+  const part = (img: string, tint?: number): PartDef => ({ img, scale: STORE, pivot: m.parts[img].pivot, tip: m.parts[img].tip, tint, sx: WIDE[img] });
   const style: WeaponStyle = m.style === 'polearm' ? 'polearm' : 'twin';
   const bones: RigDef['bones'] = {
     hips: { part: null, parent: null, at: [0, -m.hipHeight] },

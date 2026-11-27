@@ -46,13 +46,14 @@ if (!sheet || !id) {
 
 /** Body proportions in rig units (about 700 tall). */
 const T = {
-  head: 128, // head image height (hair and crown included)
-  torso: 225, // base of the neck → hip joint
-  upper: 140, // shoulder → elbow
-  fore: 132, // elbow → fist centre
-  thigh: 178, // hip → knee
-  shin: 205, // knee → sole
-  weapon: { twin: 240, single: 260, polearm: 580 }[style] ?? 240, // grip → tip
+  // sturdier than real proportions (about 6 heads): a big-ish head and a short body read better small
+  head: 156, // head image height (hair and crown included)
+  torso: 192, // base of the neck → hip joint
+  upper: 118, // shoulder → elbow
+  fore: 112, // elbow → fist centre
+  thigh: 148, // hip → knee
+  shin: 168, // knee → sole
+  weapon: { twin: 220, single: 240, polearm: 540 }[style] ?? 220, // grip → tip
 };
 /** where the grip is on the weapon image, as a fraction of its height from the top */
 const GRIP = { twin: 0.88, single: 0.88, polearm: 0.62 }[style] ?? 0.88;

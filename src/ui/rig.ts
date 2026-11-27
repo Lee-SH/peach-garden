@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { isAutoRig, rigParts, RIGS, RUN_CADENCE, STYLES, type BoneName, type Pose, type RigDef, type Style, type Vec } from '../data/rigs';
 
 /** on-screen size of style-B rigs relative to the chibi ones */
-export const AUTO_RIG_SIZE = 1.3;
+export const AUTO_RIG_SIZE = 1.22;
 
 const partKey = (id: string, part: string) => `rig-${id}-${part}`;
 
@@ -61,7 +61,7 @@ export class Rig {
       const p = b.part;
       const img = scene.add.image(0, 0, partKey(id, p.img));
       const k = this.def.imgScale;
-      img.setOrigin((p.pivot[0] * k) / img.width, (p.pivot[1] * k) / img.height).setScale(p.scale / k);
+      img.setOrigin((p.pivot[0] * k) / img.width, (p.pivot[1] * k) / img.height).setScale((p.scale / k) * (p.sx ?? 1), p.scale / k);
       if (p.tint) img.setTint(p.tint);
       this.images.set(name, img);
       this.root.add(img);
