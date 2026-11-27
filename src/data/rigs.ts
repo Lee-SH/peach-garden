@@ -7,6 +7,8 @@
  * Hanging limbs (arms, legs): 0 = straight down, NEGATIVE = swung forward (toward the enemy on the right).
  * Upright parts (torso, head, sword): 0 = straight up, POSITIVE = tipped forward.
  */
+import { RIG_MANIFEST } from './rigManifest';
+
 export type Vec = [number, number];
 
 export interface PartDef {
@@ -117,6 +119,54 @@ function buildRig(m: Measure): RigDef {
   };
 }
 
+/** A rig measured by tools/rig-auto.mjs (src/data/rigManifest.ts). Points in stored part pixels. */
+export interface AutoRig {
+  style: WeaponStyle | 'single';
+  parts: Record<string, { pivot: Vec; tip?: Vec }>;
+  /** rig units relative to the hip joint */
+  neck: Vec;
+  shoulderB: Vec;
+  shoulderF: Vec;
+  legX: number;
+  skirtAt: Vec;
+  hipHeight: number;
+  height: number;
+}
+
+/** Stored part pixels → rig units for auto rigs. */
+const STORE = 2;
+
+/** Build a rig from auto-measured parts (style B: realistic proportions, one thigh image for both legs). */
+export function buildAutoRig(m: AutoRig): RigDef {
+  const part = (img: string, tint?: number): PartDef => ({ img, scale: STORE, pivot: m.parts[img].pivot, tip: m.parts[img].tip, tint });
+  const style: WeaponStyle = m.style === 'polearm' ? 'polearm' : 'twin';
+  const bones: RigDef['bones'] = {
+    hips: { part: null, parent: null, at: [0, -m.hipHeight] },
+    torso: { part: part('torso'), parent: 'hips', at: [0, 0] },
+    skirt: { part: part('skirt'), parent: 'torso', at: m.skirtAt },
+    head: { part: part('head'), parent: 'torso', at: m.neck },
+    aB1: { part: part('upperarm', BACK), parent: 'torso', at: m.shoulderB },
+    aB2: { part: part('forearm', BACK), parent: 'aB1', at: 'tip' },
+    // single = one weapon in the front hand only
+    sB: { part: m.style === 'twin' ? part('weapon', BACK) : null, parent: 'aB2', at: 'tip' },
+    aF1: { part: part('upperarm'), parent: 'torso', at: m.shoulderF },
+    aF2: { part: part('forearm'), parent: 'aF1', at: 'tip' },
+    sF: { part: part('weapon'), parent: 'aF2', at: 'tip' },
+    lB1: { part: part('thigh', BACK), parent: 'hips', at: [-m.legX, 0] },
+    lB2: { part: part('shin', BACK), parent: 'lB1', at: 'tip' },
+    lF1: { part: part('thigh'), parent: 'hips', at: [m.legX, 0] },
+    lF2: { part: part('shin'), parent: 'lF1', at: 'tip' },
+  };
+  return {
+    bones,
+    drawOrder: ['sB', 'aB2', 'aB1', 'lB2', 'lB1', 'lF2', 'lF1', 'torso', 'skirt', 'head', 'sF', 'aF2', 'aF1'],
+    hipHeight: m.hipHeight,
+    height: m.height,
+    imgScale: 1,
+    weapon: style,
+  };
+}
+
 const liubei = () =>
   buildRig({
     head: { pivot: [117, 262] },
@@ -162,8 +212,17 @@ const zhangfei = () =>
     style: 'polearm',
   });
 
-export const RIGS: Record<string, () => RigDef> = { liubei, guanyu, zhangfei };
-export const RIG_PARTS = ['head', 'torso', 'skirt', 'upperarm', 'forearm', 'thigh_b', 'thigh_f', 'shin', 'weapon'];
+const LEGACY: Record<string, () => RigDef> = { liubei, guanyu, zhangfei };
+/** Every rigged character: auto-measured (style B) where a manifest entry exists, else the old hand-measured chibi rig. */
+export const RIGS: Record<string, () => RigDef> = {
+  ...LEGACY,
+  ...Object.fromEntries(Object.entries(RIG_MANIFEST).map(([id, m]) => [id, () => buildAutoRig(m)])),
+};
+/** Part images of one character's rig. */
+export const rigParts = (id: string) =>
+  RIG_MANIFEST[id] ? Object.keys(RIG_MANIFEST[id].parts) : ['head', 'torso', 'skirt', 'upperarm', 'forearm', 'thigh_b', 'thigh_f', 'shin', 'weapon'];
+/** true for the realistic (style B) rigs, which read smaller on screen than the chibi ones */
+export const isAutoRig = (id: string) => !!RIG_MANIFEST[id];
 
 // ---------------------------------------------------------------------------
 // Poses (shared by every general with the same skeleton)

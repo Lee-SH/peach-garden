@@ -34,9 +34,11 @@ const opt = (flag) => {
 const [cols, rows] = (opt('--grid') ?? '2x2').split('x').map(Number);
 const maxSize = Number(opt('--max') ?? 360);
 const scaleArg = opt('--scale');
+const byOrder = args.includes('--byorder');
+if (byOrder) args.splice(args.indexOf('--byorder'), 1);
 const fixedScale = scaleArg ? Number(scaleArg) : undefined;
 const [src, outDir, ...names] = args;
-if (!src || !outDir || names.length !== cols * rows) {
+if (!src || !outDir || (!byOrder && names.length !== cols * rows)) {
   console.error('usage: cut-sheet.mjs <sheet.png> <outDir> [--grid CxR] [--max N | --scale K] <name>... (one per cell)');
   process.exit(1);
 }
@@ -139,9 +141,64 @@ for (let i = 0; i < N; i++) {
   }
   boxes.push(box);
 }
-const quadOf = (b) =>
+let quadOf = (b) =>
   Math.min(rows - 1, Math.floor(((b.y0 + b.y1) / 2 / h) * rows)) * cols + Math.min(cols - 1, Math.floor(((b.x0 + b.x1) / 2 / w) * cols));
 const keep = boxes.map((b) => b.n >= 40);
+
+// --byorder: the image AI doesn't always keep to the grid. Group nearby blobs into drawings, take the
+// names.length biggest, and number them in reading order (rows top → bottom, then left → right).
+if (byOrder) {
+  const near = (a, b, g = 4) => a.x0 - g <= b.x1 && b.x0 - g <= a.x1 && a.y0 - g <= b.y1 && b.y0 - g <= a.y1;
+  const groups = [];
+  boxes.forEach((b, id) => {
+    if (!keep[id]) return;
+    let g = groups.find((gr) => near(gr, b));
+    if (!g) groups.push((g = { x0: b.x0, y0: b.y0, x1: b.x1, y1: b.y1, n: 0, ids: [] }));
+    Object.assign(g, { x0: Math.min(g.x0, b.x0), y0: Math.min(g.y0, b.y0), x1: Math.max(g.x1, b.x1), y1: Math.max(g.y1, b.y1) });
+    g.n += b.n;
+    g.ids.push(id);
+  });
+  // groups that grew into each other
+  for (let merged = true; merged; ) {
+    merged = false;
+    for (let i = 0; i < groups.length && !merged; i++)
+      for (let j = i + 1; j < groups.length && !merged; j++)
+        if (near(groups[i], groups[j])) {
+          const a = groups[i];
+          const b = groups.splice(j, 1)[0];
+          Object.assign(a, { x0: Math.min(a.x0, b.x0), y0: Math.min(a.y0, b.y0), x1: Math.max(a.x1, b.x1), y1: Math.max(a.y1, b.y1), n: a.n + b.n, ids: [...a.ids, ...b.ids] });
+          merged = true;
+        }
+  }
+  const main = groups.sort((a, b) => b.n - a.n).slice(0, names.length);
+  // rows: sort by vertical centre and start a new row at a big jump
+  const cy = (g) => (g.y0 + g.y1) / 2;
+  const byY = [...main].sort((a, b) => cy(a) - cy(b));
+  const rowsOf = [];
+  for (const g of byY) {
+    const last = rowsOf[rowsOf.length - 1];
+    if (last && cy(g) - cy(last[0]) < h / rows / 2) last.push(g);
+    else rowsOf.push([g]);
+  }
+  const ordered = rowsOf.flatMap((r) => r.sort((a, b) => a.x0 + a.x1 - (b.x0 + b.x1)));
+  const slot = new Map();
+  ordered.forEach((g, q) => g.ids.forEach((id) => slot.set(id, q)));
+  // leftovers (small specks) go with the nearest drawing
+  boxes.forEach((b, id) => {
+    if (!keep[id] || slot.has(id)) return;
+    const c = [(b.x0 + b.x1) / 2, (b.y0 + b.y1) / 2];
+    let best = 0;
+    let bd = Infinity;
+    ordered.forEach((g, q) => {
+      const d = Math.hypot(c[0] - (g.x0 + g.x1) / 2, c[1] - cy(g));
+      if (d < bd) [bd, best] = [d, q];
+    });
+    slot.set(id, best);
+  });
+  const idOf = new Map(boxes.map((b, id) => [b, id]));
+  quadOf = (b) => slot.get(idOf.get(b)) ?? -1;
+  if (ordered.length < names.length) console.warn(`only ${ordered.length} drawings found for ${names.length} names`);
+}
 
 mkdirSync(outDir, { recursive: true });
 const written = [];

@@ -1,11 +1,14 @@
 import Phaser from 'phaser';
-import { RIG_PARTS, RIGS, RUN_CADENCE, STYLES, type BoneName, type Pose, type RigDef, type Style, type Vec } from '../data/rigs';
+import { isAutoRig, rigParts, RIGS, RUN_CADENCE, STYLES, type BoneName, type Pose, type RigDef, type Style, type Vec } from '../data/rigs';
+
+/** on-screen size of style-B rigs relative to the chibi ones */
+export const AUTO_RIG_SIZE = 1.3;
 
 const partKey = (id: string, part: string) => `rig-${id}-${part}`;
 
 export function preloadRigs(scene: Phaser.Scene) {
   for (const id of Object.keys(RIGS))
-    for (const part of RIG_PARTS) scene.load.image(partKey(id, part), `${import.meta.env.BASE_URL}art/${id}/rig/${part}.png`);
+    for (const part of rigParts(id)) scene.load.image(partKey(id, part), `${import.meta.env.BASE_URL}art/${id}/rig/${part}.png`);
 }
 
 export const hasRig = (scene: Phaser.Scene, id: string) => !!RIGS[id] && scene.textures.exists(partKey(id, 'torso'));
@@ -63,7 +66,8 @@ export class Rig {
         this.len.set(name, Math.hypot(v[0], v[1]) * p.scale);
       }
     }
-    this.root.setScale(height / this.def.height);
+    // realistic (style B) figures have small heads; drawn a bit taller so they read as well as the chibi ones
+    this.root.setScale((height * (isAutoRig(id) ? AUTO_RIG_SIZE : 1)) / this.def.height);
     this.onUpdate = (_t, delta) => this.update(delta);
     scene.events.on(Phaser.Scenes.Events.UPDATE, this.onUpdate);
     this.root.once(Phaser.GameObjects.Events.DESTROY, () => scene.events.off(Phaser.Scenes.Events.UPDATE, this.onUpdate));
