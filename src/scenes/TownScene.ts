@@ -5,7 +5,7 @@ import { loadSave, writeSave, type CampaignSave } from '../core/save';
 import { devWinCurrent } from '../core/simulate';
 import { isDev } from '../ui/prefs';
 import { artKey, hasArt, hasPose } from '../data/art';
-import { TOWN_FILES } from '../data/artManifest';
+import { artUrl, TOWN_FILES } from '../data/artManifest';
 import { ITEM_ORDER, ITEMS } from '../data/items';
 import { PICTURE_SPOTS, PLACE_KEY, SPOTS, townOf } from '../data/town';
 import { newTalks } from '../data/tavern';
@@ -18,7 +18,7 @@ const bgKey = (name: string) => `town-${name}`;
 
 export function preloadTown(scene: Phaser.Scene) {
   // public/art/town/<place>.png per camp, bg.png for any camp without its own (360×640 layout, see SPOTS)
-  for (const name of TOWN_FILES) scene.load.image(bgKey(name), `${import.meta.env.BASE_URL}art/town/${name}.png`);
+  for (const name of TOWN_FILES) scene.load.image(bgKey(name), artUrl('town', name));
 }
 
 /** Colours of the drawn placeholder town, by camp. */

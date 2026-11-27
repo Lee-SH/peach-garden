@@ -5,13 +5,13 @@
  *   node tools/battle-bg.mjs <picture.png> <scenarioId> [--horizon 0.30]
  *
  * The picture is cut at the horizon (a fraction of its height) into
- *   public/art/battle/<id>-sky.png     sky and distant scenery (scrolls slowly)
- *   public/art/battle/<id>-ground.png  the ground the fighters stand on (scrolls fast)
+ *   public/art/battle/<id>-sky.jpg     sky and distant scenery (scrolls slowly)
+ *   public/art/battle/<id>-ground.jpg  the ground the fighters stand on (scrolls fast)
  * Each layer is written as the picture followed by its mirror image, so it tiles without a seam.
  * The original is kept in assets/raw/battle/. Runs tools/art-manifest.mjs afterwards.
  */
 import { execFileSync } from 'node:child_process';
-import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { copyFileSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { PNG } from 'pngjs';
@@ -49,7 +49,12 @@ function band(y0, y1) {
   return PNG.sync.write(out);
 }
 
-writeFileSync(join(outDir, `${id}-sky.png`), band(0, cut));
-writeFileSync(join(outDir, `${id}-ground.png`), band(cut, src.height));
+// written as JPEG (backgrounds need no transparency; a quarter of the size)
+for (const [part, buf] of [['sky', band(0, cut)], ['ground', band(cut, src.height)]]) {
+  const png = join(outDir, `${id}-${part}.png`);
+  writeFileSync(png, buf);
+  execFileSync('sips', ['-s', 'format', 'jpeg', '-s', 'formatOptions', '82', png, '--out', png.replace(/\.png$/, '.jpg')], { stdio: 'ignore' });
+  unlinkSync(png);
+}
 console.log(`${id}: ${src.width}×${src.height}, horizon at ${cut}px → sky ${src.width * 2}×${cut}, ground ${src.width * 2}×${src.height - cut}`);
 execFileSync('node', [join(root, 'tools', 'art-manifest.mjs')], { stdio: 'inherit' });

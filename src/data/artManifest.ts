@@ -33,3 +33,9 @@ export const SCENE_FILES: string[] = ['ch1-1', 'ch1-1-meet', 'ch1-1-notice', 'ch
 
 /** Battle backgrounds under public/art/battle/ (<scenarioId>-sky.png, <scenarioId>-ground.png). */
 export const BATTLE_FILES: string[] = ['ch1-1-ground', 'ch1-1-sky', 'ch1-2-ground', 'ch1-2-sky', 'ch1-3-ground', 'ch1-3-sky', 'ch1-4-ground', 'ch1-4-sky', 'ch1-5-ground', 'ch1-5-sky', 'ch1-6-ground', 'ch1-6-sky'];
+
+/** Pictures stored in another format than PNG ("folder/name" → extension). */
+export const ART_EXT: Record<string, string> = {"town/guangzong":"jpg","town/qingzhou":"jpg","town/quyang":"jpg","town/tavern":"jpg","town/yingchuan":"jpg","town/zhuoxian":"jpg","scenes/ch1-1-meet":"jpg","scenes/ch1-1-notice":"jpg","scenes/ch1-1-sigh":"jpg","scenes/ch1-1-uprising":"jpg","scenes/ch1-1":"jpg","scenes/ch1-2":"jpg","scenes/ch1-3":"jpg","scenes/ch1-4":"jpg","scenes/ch1-5":"jpg","scenes/ch1-6":"jpg","scenes/splash":"jpg","scenes/title":"jpg","battle/ch1-1-ground":"jpg","battle/ch1-1-sky":"jpg","battle/ch1-2-ground":"jpg","battle/ch1-2-sky":"jpg","battle/ch1-3-ground":"jpg","battle/ch1-3-sky":"jpg","battle/ch1-4-ground":"jpg","battle/ch1-4-sky":"jpg","battle/ch1-5-ground":"jpg","battle/ch1-5-sky":"jpg","battle/ch1-6-ground":"jpg","battle/ch1-6-sky":"jpg"};
+
+/** URL of a picture in one of the plain folders (icons, town, scenes, battle). */
+export const artUrl = (folder: string, name: string) => `${import.meta.env.BASE_URL}art/${folder}/${name}.${ART_EXT[folder + '/' + name] ?? 'png'}`;

@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { SCENE_FILES } from '../data/artManifest';
+import { artUrl, SCENE_FILES } from '../data/artManifest';
 import { preloadArt } from '../data/art';
 import { preloadRigs } from '../ui/rig';
 import { preloadIcons } from '../ui/icons';
@@ -9,7 +9,7 @@ import { preloadTown } from './TownScene';
 /** Story, title and splash pictures under public/art/scenes/. */
 export function preloadScenes(scene: Phaser.Scene) {
   for (const name of SCENE_FILES) {
-    if (!scene.textures.exists(`scene-${name}`)) scene.load.image(`scene-${name}`, `${import.meta.env.BASE_URL}art/scenes/${name}.png`);
+    if (!scene.textures.exists(`scene-${name}`)) scene.load.image(`scene-${name}`, artUrl('scenes', name));
   }
 }
 
@@ -23,7 +23,7 @@ export class BootScene extends Phaser.Scene {
   }
 
   preload() {
-    if (SCENE_FILES.includes('splash')) this.load.image('scene-splash', `${import.meta.env.BASE_URL}art/scenes/splash.png`);
+    if (SCENE_FILES.includes('splash')) this.load.image('scene-splash', artUrl('scenes', 'splash'));
   }
 
   create() {

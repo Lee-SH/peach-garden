@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { BATTLE_FILES } from '../data/artManifest';
+import { artUrl, BATTLE_FILES } from '../data/artManifest';
 import { W } from './theme';
 
 /** Battlefield band shared by the battle and formation screens. */
@@ -14,7 +14,7 @@ export function preloadField(scene: Phaser.Scene, scenarioId: string) {
   for (const part of ['sky', 'ground'] as const) {
     const name = `${scenarioId}-${part}`;
     if (BATTLE_FILES.includes(name) && !scene.textures.exists(layerKey(scenarioId, part)))
-      scene.load.image(layerKey(scenarioId, part), `${import.meta.env.BASE_URL}art/battle/${name}.png`);
+      scene.load.image(layerKey(scenarioId, part), artUrl('battle', name));
   }
 }
 
