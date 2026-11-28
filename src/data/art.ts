@@ -20,16 +20,14 @@ interface RunCycle {
  * frame art has a run cycle list it here; without one the idle image bobs while moving.
  * Characters without any art are drawn as a round token.
  */
-const RUNS: Record<string, RunCycle> = {
-  // r5 (a deep kneel without swords) is replaced by r2 so the bounce stays small and the swords stay in hand
-  liubei: { frames: ['r1', 'r2', 'r3', 'r4', 'r2', 'r6'], contact: [1, 4] },
-};
+const RUNS: Record<string, RunCycle> = {};
 export const ART_IDS = Object.keys(ART_FILES);
 
-/** Missing poses fall back: atk1–4/special → attack, ult → attack, hurt/down → idle. */
+/** Missing poses fall back (see FALLBACK); hurt/down → idle. */
 const FALLBACK: Record<string, Pose[]> = {
-  atk1: ['attack'], atk2: ['attack'], atk3: ['attack'], atk4: ['attack'],
-  special: ['attack'], ult: ['attack'], attack: ['atk1'], hurt: [], down: [],
+  // strong moves (atk3 leap, atk4 area) use the special-move picture when there is one
+  atk1: ['attack'], atk2: ['attack'], atk3: ['ult', 'special', 'attack'], atk4: ['ult', 'special', 'attack'],
+  special: ['ult', 'attack'], ult: ['special', 'attack'], attack: ['atk1'], hurt: [], down: [],
 };
 export function resolvePose(id: string, pose: Pose): Pose {
   const files = ART_FILES[id] ?? [];

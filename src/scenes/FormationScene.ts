@@ -114,7 +114,7 @@ export class FormationScene extends Phaser.Scene {
     let parts: Phaser.GameObjects.GameObject[];
     let mark: Token['mark'];
     let hit: Phaser.Geom.Rectangle;
-    if (readPrefs().rig && hasRig(this, id)) {
+    if (readPrefs().joints && hasRig(this, id)) {
       // same cutout figure as in battle (idle breathing)
       mark = this.add.ellipse(0, R + 2, R * 2, 11).setStrokeStyle(2, 0xffffff, 0);
       const rig = new Rig(this, id, SPRITE_H * 1.12);

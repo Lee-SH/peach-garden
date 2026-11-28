@@ -119,7 +119,7 @@ export class BattleScene extends Phaser.Scene {
     const prefs = readPrefs();
     this.auto = prefs.auto;
     this.speed = prefs.speed;
-    this.useRig = prefs.rig;
+    this.useRig = prefs.joints;
 
     ({ far: this.bgFar, near: this.bgNear, ground: this.bgGround } = drawField(this, this.sc.id));
 

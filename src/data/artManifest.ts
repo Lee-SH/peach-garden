@@ -10,7 +10,7 @@ export const ART_FILES: Record<string, string[]> = {
   "dengmao": ['attack', 'idle', 'portrait', 'special'],
   "gaosheng": ['attack', 'idle', 'portrait', 'special'],
   "guanyu": ['attack', 'idle', 'portrait', 'ult'],
-  "liubei": ['atk1', 'atk2', 'atk3', 'atk4', 'idle', 'portrait', 'r1', 'r2', 'r3', 'r4', 'r6', 'ult'],
+  "liubei": ['attack', 'idle', 'portrait', 'ult'],
   "rebel_bandit": ['attack', 'down', 'hurt', 'idle'],
   "rebel_elite": ['attack', 'down', 'hurt', 'idle'],
   "rebel_farmer": ['attack', 'down', 'hurt', 'idle'],
