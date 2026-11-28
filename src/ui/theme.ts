@@ -20,7 +20,8 @@ export function hd(scene: Phaser.Scene) {
   scene.cameras.main.setZoom(RES).centerOn(W / 2, H / 2);
 }
 
-export const FONT = '"Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", sans-serif';
+/** One typeface everywhere: Gowun Batang (a gentle serif that suits the period), loaded in index.html. */
+export const FONT = '"Gowun Batang", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", serif';
 
 export const COLOR = {
   bg: 0x14110e,

@@ -23,8 +23,15 @@ export class TitleScene extends Phaser.Scene {
     }
     this.drawPetals();
     const ty = art ? 70 : 190;
-    text(this, W / 2, ty, '도원', 64, COLOR.gold).setOrigin(0.5).setShadow(0, 3, '#000', 6, true, true);
-    text(this, W / 2, ty + 60, '桃園 · 삼국지 전술 RPG', 15, art ? '#f3e9d2' : COLOR.dim).setOrigin(0.5).setShadow(0, 2, '#000', 4, true, true);
+    if (this.textures.exists('scene-logo')) {
+      // brush-calligraphy logo (public/art/scenes/logo.png), gently settling in
+      const logo = this.add.image(W / 2, ty + 4, 'scene-logo');
+      logo.setScale(250 / logo.width).setAlpha(0);
+      this.tweens.add({ targets: logo, alpha: 1, y: ty, duration: 700, ease: 'Sine.easeOut' });
+    } else {
+      text(this, W / 2, ty, '도원', 64, COLOR.gold).setOrigin(0.5).setShadow(0, 3, '#000', 6, true, true);
+    }
+    text(this, W / 2, ty + 72, '삼국지 전술 RPG', 15, art ? '#f3e9d2' : COLOR.dim).setOrigin(0.5).setShadow(0, 2, '#000', 4, true, true);
 
     const save = loadSave();
     button(this, W / 2, 380, 200, 48, '새로 시작', () => {

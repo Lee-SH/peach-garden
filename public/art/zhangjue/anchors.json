@@ -2,5 +2,7 @@
   "idle": 0.41,
   "attack": 0.656,
   "special": 0.564,
-  "portrait": 0.525
+  "portrait": 0.525,
+  "r1": 0.537,
+  "r2": 0.597
 }

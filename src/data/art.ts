@@ -16,12 +16,16 @@ interface RunCycle {
 }
 
 /**
- * Which images exist comes from the generated manifest (tools/art-manifest.mjs). Characters whose
- * frame art has a run cycle list it here; without one the idle image bobs while moving.
+ * Which images exist comes from the generated manifest (tools/art-manifest.mjs). Characters with
+ * run frames r1–r2 play them while moving; without them the idle image bobs.
  * Characters without any art are drawn as a round token.
  */
-const RUNS: Record<string, RunCycle> = {};
 export const ART_IDS = Object.keys(ART_FILES);
+/** 2-frame cycles added with tools/add-run.mjs: a foot landing, then the legs passing */
+const RUN2 = ['r1', 'r2'];
+const RUNS: Record<string, RunCycle> = Object.fromEntries(
+  ART_IDS.filter((id) => RUN2.every((f) => ART_FILES[id].includes(f))).map((id) => [id, { frames: RUN2, contact: [0] }]),
+);
 
 /** Missing poses fall back (see FALLBACK); hurt/down → idle. */
 const FALLBACK: Record<string, Pose[]> = {
@@ -42,6 +46,7 @@ export { CHAR_SCALE };
 /** On-screen height of a standing general (px in the 360×640 game). */
 export const SPRITE_H = Math.round(76 * CHAR_SCALE);
 const RUN_FPS = 14;
+const RUN2_FPS = 7;
 /**
  * The AI-drawn run frames crouch and leap much more than a real stride (head moves ~25px).
  * Each frame's head height is pulled this far toward the cycle average to calm the bounce.
@@ -133,7 +138,8 @@ export function playRun(s: Phaser.GameObjects.Sprite, id: string, onContact?: ()
     s.scene.anims.create({
       key: runKey(id),
       frames: run.frames.map((p) => ({ key: artKey(id, p) })),
-      frameRate: RUN_FPS,
+      // RUN_FPS was tuned for a 6-frame stride; a 2-frame cycle (one step per loop) runs slower
+      frameRate: run.frames.length === 2 ? RUN2_FPS : RUN_FPS,
       repeat: -1,
     });
   }
