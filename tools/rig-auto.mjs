@@ -58,10 +58,17 @@ const T = {
 /** where the grip is on the weapon image, as a fraction of its height from the top */
 const GRIP = { twin: 0.88, single: 0.88, polearm: 0.62 }[style] ?? 0.88;
 const STORE = 2; // rig units per stored pixel
+/** --natural: head (above the neck) + torso + thigh + shin, in rig units */
+const NATURAL_HEIGHT = 640;
 
 const tmp = join(root, 'assets', 'raw', `${id}-rigcut`);
 rmSync(tmp, { recursive: true, force: true });
-execFileSync('node', [join(root, 'tools', 'cut-sheet.mjs'), sheet, tmp, '--grid', '3x3', '--scale', '1', '--byorder',
+// --cells: one drawing per 3×3 cell (blobs go to the cell their centre is in) instead of reading order
+const byCell = args.includes('--cells');
+// --shapes: find the parts by shape (tools/parts-cut.mjs), for sheets that don't keep to the grid
+const byShape = args.includes('--shapes');
+if (byShape) execFileSync('node', [join(root, 'tools', 'parts-cut.mjs'), sheet, tmp], { stdio: ['ignore', 'ignore', 'inherit'] });
+else execFileSync('node', [join(root, 'tools', 'cut-sheet.mjs'), sheet, tmp, '--grid', '3x3', '--scale', '1', ...(byCell ? [] : ['--byorder']),
   ...order], { stdio: ['ignore', 'ignore', 'inherit'] });
 
 const read = (n) => PNG.sync.read(readFileSync(join(tmp, `${n}.png`)));
@@ -95,6 +102,36 @@ function mirror(p) {
   return o;
 }
 
+const load = (n) => (flip ? mirror(read(n)) : read(n));
+
+// --natural: keep the sizes the parts were drawn at relative to each other (the sheet was drawn as one
+// figure taken apart) and only scale the whole figure, so the head and body match the painted art.
+if (args.includes('--natural')) {
+  const len = (n, a, b) => {
+    const p = load(n);
+    return dist([centre(p, 0, 0.12), p.height * a], [centre(p, 0.86, 1), p.height * b]);
+  };
+  const tr = load('torso');
+  const raw = {
+    head: load('head').height * (neckAt || 0.93),
+    torso: dist([centre(tr, 0.9, 1), tr.height * 0.92], [centre(tr, 0, 0.06), tr.height * 0.04]),
+    upper: len('upper', 0.06, 0.94),
+    fore: len('fore', 0.05, 0.9),
+    thigh: len('thigh', 0.05, 0.95),
+    shin: load('shin').height * 0.95,
+  };
+  const k = NATURAL_HEIGHT / (raw.head + raw.torso + raw.thigh + raw.shin);
+  for (const key of Object.keys(raw)) T[key] = raw[key] * k;
+  T.head /= 0.93 * headK; // the head code below sizes by T.head * 0.93 * headK
+  if (!wlen) {
+    const w = load('weapon');
+    T.weapon = w.height * (gripAt || GRIP) * k;
+    // the AI shrinks long weapons to fit their cell: a spear or glaive must still be longer than a man is tall
+    if (style === 'polearm') T.weapon = Math.max(T.weapon, 420);
+  }
+  console.log(`natural scale ×${k.toFixed(3)}:`, Object.fromEntries(Object.entries(T).map(([a, v]) => [a, Math.round(v)])));
+}
+
 const parts = {};
 const outDir = join(root, 'public', 'art', id, 'rig');
 rmSync(outDir, { recursive: true, force: true });
@@ -112,7 +149,6 @@ function save(name, p, scale, pivot, tip) {
   parts[name] = { pivot: k(pivot), ...(tip ? { tip: k(tip) } : {}) };
   return f;
 }
-const load = (n) => (flip ? mirror(read(n)) : read(n));
 
 // limbs: pivot at the top centre, tip at the bottom centre
 function limb(name, src, target, a = 0.06, b = 0.94) {
@@ -177,6 +213,7 @@ const entry = {
   skirtAt: [0, -Math.round(T.torso * 0.08)],
   hipHeight,
   height: Math.round(hipHeight + T.torso + hPivot[1] * hScale),
+  ...(args.includes('--natural') ? { natural: true } : {}),
 };
 rmSync(tmp, { recursive: true, force: true });
 

@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { isAutoRig, rigParts, RIGS, RUN_CADENCE, STYLES, type BoneName, type Pose, type RigDef, type Style, type Vec } from '../data/rigs';
+import { isAutoRig, isNaturalRig, rigParts, RIGS, RUN_CADENCE, STYLES, type BoneName, type Pose, type RigDef, type Style, type Vec } from '../data/rigs';
 
 /** on-screen size of style-B rigs relative to the chibi ones */
 export const AUTO_RIG_SIZE = 1.22;
@@ -72,7 +72,9 @@ export class Rig {
       }
     }
     // realistic (style B) figures have small heads; drawn a bit taller so they read as well as the chibi ones
-    this.root.setScale((height * (isAutoRig(id) ? AUTO_RIG_SIZE : 1)) / this.def.height);
+    // natural rigs match the painted pictures, which callers draw 1.12× smaller than older rigs
+    const k = isNaturalRig(id) ? 1 / 1.12 : isAutoRig(id) ? AUTO_RIG_SIZE : 1;
+    this.root.setScale((height * k) / this.def.height);
     this.onUpdate = (_t, delta) => this.update(delta);
     scene.events.on(Phaser.Scenes.Events.UPDATE, this.onUpdate);
     this.root.once(Phaser.GameObjects.Events.DESTROY, () => scene.events.off(Phaser.Scenes.Events.UPDATE, this.onUpdate));
@@ -192,8 +194,30 @@ export class Rig {
     for (const key of Object.keys(p) as (keyof Pose)[]) this.cur[key] += ((p[key] ?? 0) - this.cur[key]) * k;
   }
 
-  /** Forward kinematics: place and rotate every part image from the current pose. */
+  /**
+   * Forward kinematics: place and rotate every part image from the current pose.
+   * Held poses (attacks, shouts) are planted: the body drops until the lower foot is on the ground,
+   * so deep lunges need no hand-tuned height; a negative bodyY still lifts it (leaps).
+   */
   private layout() {
+    let world = this.solveAll(this.cur.bodyY);
+    if (this.mode === 'hold' && this.def.bones.lF2 && this.def.bones.lB2) {
+      const foot = (leg: BoneName) => {
+        const w = world.get(leg)!;
+        return w.pos[1] + rot([0, this.len.get(leg) ?? 0], w.ang)[1];
+      };
+      world = this.solveAll(0);
+      const low = Math.max(foot('lF2'), foot('lB2'));
+      world = this.solveAll(-low + Math.min(0, this.cur.bodyY));
+    }
+    for (const [name, img] of this.images) {
+      const w = world.get(name)!;
+      img.setPosition(w.pos[0], w.pos[1]);
+      img.setRotation(w.ang + (this.base.get(name) ?? 0));
+    }
+  }
+
+  private solveAll(bodyY: number) {
     const world = new Map<BoneName, { pos: Vec; ang: number }>();
     const solve = (name: BoneName): { pos: Vec; ang: number } => {
       const hit = world.get(name);
@@ -203,7 +227,7 @@ export class Rig {
       let res: { pos: Vec; ang: number };
       if (!b.parent) {
         const at = b.at as Vec;
-        res = { pos: [at[0], at[1] + this.cur.bodyY], ang: local };
+        res = { pos: [at[0], at[1] + bodyY], ang: local };
       } else {
         const par = solve(b.parent);
         const off: Vec = b.at === 'tip' ? [0, this.len.get(b.parent) ?? 0] : b.at;
@@ -213,10 +237,7 @@ export class Rig {
       world.set(name, res);
       return res;
     };
-    for (const [name, img] of this.images) {
-      const w = solve(name);
-      img.setPosition(w.pos[0], w.pos[1]);
-      img.setRotation(w.ang + (this.base.get(name) ?? 0));
-    }
+    for (const name of Object.keys(this.def.bones) as BoneName[]) solve(name);
+    return world;
   }
 }

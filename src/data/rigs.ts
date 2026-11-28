@@ -133,6 +133,8 @@ export interface AutoRig {
   skirtAt: Vec;
   hipHeight: number;
   height: number;
+  /** parts kept at the sizes they were drawn (tools/rig-auto.mjs --natural): no extra width, life size */
+  natural?: boolean;
 }
 
 /** Stored part pixels → rig units for auto rigs. */
@@ -141,7 +143,7 @@ const STORE = 2;
 /** Build a rig from auto-measured parts (style B: realistic proportions, one thigh image for both legs). */
 export function buildAutoRig(m: AutoRig): RigDef {
   // body parts drawn a little wider than the sheet: realistic AI figures look thin at this size
-  const WIDE: Record<string, number> = { torso: 1.12, skirt: 1.12, upperarm: 1.15, forearm: 1.15, thigh: 1.18, shin: 1.12 };
+  const WIDE: Record<string, number> = m.natural ? {} : { torso: 1.12, skirt: 1.12, upperarm: 1.15, forearm: 1.15, thigh: 1.18, shin: 1.12 };
   const part = (img: string, tint?: number): PartDef => ({ img, scale: STORE, pivot: m.parts[img].pivot, tip: m.parts[img].tip, tint, sx: WIDE[img] });
   const style: WeaponStyle = m.style === 'polearm' ? 'polearm' : 'twin';
   const bones: RigDef['bones'] = {
@@ -227,6 +229,7 @@ export const rigParts = (id: string) =>
   RIG_MANIFEST[id] ? Object.keys(RIG_MANIFEST[id].parts) : ['head', 'torso', 'skirt', 'upperarm', 'forearm', 'thigh_b', 'thigh_f', 'shin', 'weapon'];
 /** true for the realistic (style B) rigs, which read smaller on screen than the chibi ones */
 export const isAutoRig = (id: string) => !!RIG_MANIFEST[id];
+export const isNaturalRig = (id: string) => !!RIG_MANIFEST[id]?.natural;
 
 // ---------------------------------------------------------------------------
 // Poses (shared by every general with the same skeleton)
@@ -304,35 +307,39 @@ export interface Move {
   spin?: boolean;
 }
 
-/** Attack poses, matching the frame art's atk1–atk4. */
+/**
+ * Attack poses, matching the frame art's atk1–atk4. Each is a slow, clear wind-up (body coiled back,
+ * weight on the back leg) and a fast strike into a deep lunge with the follow-through held, which
+ * reads far better than small arm swings. The rig plants the feet itself (see Rig.layout).
+ */
 export const MOVES: Record<string, Move> = {
-  // horizontal slash
+  // horizontal slash: front sword cocked high behind, swept across into a low lunge
   atk1: {
-    wind: { torso: -10, head: 4, aF1: 150, aF2: -30, sF: 40, aB1: -40, aB2: -40, lF1: -25, lB1: 22 },
-    strike: { torso: 16, head: -6, aF1: -105, aF2: -10, sF: 100, aB1: 45, aB2: -20, lF1: -30, lB1: 28 },
-    windMs: 140,
-    strikeMs: 80,
-  },
-  // forward thrust
-  atk2: {
-    wind: { torso: -12, aF1: 45, aF2: -115, sF: 180, aB1: -30, lF1: -10, lB1: 12 },
-    strike: { torso: 22, head: -10, aF1: -88, aF2: 0, sF: 180, aB1: 50, lF1: -48, lF2: 12, lB1: 42, lB2: 12, bodyY: 30 },
-    windMs: 150,
+    wind: aim({ torso: -24, head: 8, aF1: 160, aF2: -40, aB1: -50, aB2: -60, lF1: -30, lF2: 25, lB1: 28, lB2: 10 }, -60),
+    strike: aim({ torso: 32, head: -10, aF1: -100, aF2: -5, aB1: 65, aB2: -30, lF1: -62, lF2: 58, lB1: 48, lB2: 4 }, 105),
+    windMs: 210,
     strikeMs: 70,
   },
-  // leaping overhead cross-slash
-  atk3: {
-    wind: { torso: -6, head: 6, aF1: 168, aF2: -10, sF: 180, aB1: 172, aB2: -10, sB: 180, lF2: 45, lB2: 45, lF1: -20, lB1: 10, bodyY: -70 },
-    strike: { torso: 22, head: -8, aF1: -55, aF2: -15, sF: 180, aB1: -40, aB2: -15, sB: 180, lF1: -30, lB1: 25, lF2: 10, lB2: 10, bodyY: 10 },
-    windMs: 170,
-    strikeMs: 90,
+  // thrust: crouched and coiled, then the whole body drives the front blade straight out
+  atk2: {
+    wind: aim({ torso: -18, head: 4, aF1: 55, aF2: -120, aB1: -40, aB2: -50, lF1: -18, lF2: 35, lB1: 18, lB2: 35 }, 90),
+    strike: aim({ torso: 36, head: -16, aF1: -95, aF2: 5, aB1: 75, aB2: -10, lF1: -72, lF2: 66, lB1: 56, lB2: 0 }, 90),
+    windMs: 190,
+    strikeMs: 60,
   },
-  // spinning slash, arms out
+  // leaping cross-slash: both blades high, knees tucked in the air, crashing down into a lunge
+  atk3: {
+    wind: { torso: -16, head: 8, aF1: 172, aF2: -8, sF: 180, aB1: 168, aB2: -8, sB: 180, lF1: -55, lF2: 95, lB1: -10, lB2: 105, bodyY: -120 },
+    strike: { torso: 42, head: -12, aF1: -40, aF2: -15, sF: 180, aB1: -25, aB2: -15, sB: 180, lF1: -66, lF2: 62, lB1: 52, lB2: 4 },
+    windMs: 240,
+    strikeMs: 80,
+  },
+  // spinning slash: low wide stance, both arms flung out
   atk4: {
-    wind: { torso: -8, aF1: -90, aF2: 0, sF: 180, aB1: 90, aB2: 0, sB: 180, lF1: -15, lB1: 15 },
-    strike: { torso: 8, aF1: -95, aF2: 0, sF: 180, aB1: 95, aB2: 0, sB: 180, lF1: -20, lB1: 20 },
-    windMs: 120,
-    strikeMs: 160,
+    wind: { torso: -12, head: 6, aF1: -90, aF2: 0, sF: 180, aB1: 95, aB2: 0, sB: 180, lF1: -35, lF2: 30, lB1: 35, lB2: 20 },
+    strike: { torso: 14, head: -6, aF1: -100, aF2: 0, sF: 180, aB1: 100, aB2: 0, sB: 180, lF1: -45, lF2: 35, lB1: 45, lB2: 10 },
+    windMs: 150,
+    strikeMs: 170,
     spin: true,
   },
 };
@@ -374,33 +381,33 @@ function polearmRun(p: number): Pose {
 }
 
 const P_MOVES: Record<string, Move> = {
-  // big sweeping cut: blade raised behind, swept down and forward
+  // big sweeping cut: blade raised high behind, swept down and forward into a low lunge
   atk1: {
-    wind: aim({ torso: -12, head: 4, aF1: 150, aF2: -20, aB1: 120, aB2: -30, lF1: -25, lB1: 22 }, -55),
-    strike: aim({ torso: 20, head: -6, aF1: -70, aF2: -20, aB1: -45, aB2: -40, lF1: -32, lB1: 30 }, 128),
-    windMs: 170,
-    strikeMs: 90,
+    wind: aim({ torso: -26, head: 8, aF1: 160, aF2: -20, aB1: 130, aB2: -30, lF1: -28, lF2: 22, lB1: 26, lB2: 8 }, -70),
+    strike: aim({ torso: 32, head: -10, aF1: -75, aF2: -15, aB1: -50, aB2: -40, lF1: -62, lF2: 58, lB1: 48, lB2: 4 }, 135),
+    windMs: 220,
+    strikeMs: 75,
   },
-  // thrust: weapon level, pulled back, then driven forward with a lunge
+  // thrust: crouched, shaft pulled back level, then driven forward with the whole body
   atk2: {
-    wind: aim({ torso: -10, aF1: 40, aF2: -100, aB1: 25, aB2: -95, lF1: -10, lB1: 12 }, 90),
-    strike: aim({ torso: 22, head: -8, aF1: -82, aF2: 0, aB1: -55, aB2: -25, lF1: -48, lF2: 12, lB1: 42, lB2: 12, bodyY: 30 }, 90),
-    windMs: 150,
-    strikeMs: 70,
+    wind: aim({ torso: -18, head: 4, aF1: 45, aF2: -105, aB1: 30, aB2: -100, lF1: -18, lF2: 35, lB1: 18, lB2: 35 }, 90),
+    strike: aim({ torso: 34, head: -14, aF1: -88, aF2: 0, aB1: -62, aB2: -20, lF1: -72, lF2: 66, lB1: 56, lB2: 0 }, 92),
+    windMs: 200,
+    strikeMs: 60,
   },
-  // leaping overhead chop
+  // leaping overhead chop: weapon high above the head in the air, slammed down
   atk3: {
-    wind: aim({ torso: -8, head: 6, aF1: 168, aF2: -10, aB1: 160, aB2: -10, lF2: 45, lB2: 45, lF1: -20, lB1: 10, bodyY: -70 }, -15),
-    strike: aim({ torso: 24, head: -8, aF1: -60, aF2: -20, aB1: -40, aB2: -30, lF1: -30, lB1: 25, lF2: 10, lB2: 10, bodyY: 10 }, 150),
-    windMs: 180,
-    strikeMs: 90,
+    wind: aim({ torso: -18, head: 8, aF1: 172, aF2: -5, aB1: 165, aB2: -5, lF1: -55, lF2: 95, lB1: -10, lB2: 105, bodyY: -120 }, -25),
+    strike: aim({ torso: 40, head: -10, aF1: -55, aF2: -20, aB1: -38, aB2: -30, lF1: -66, lF2: 62, lB1: 52, lB2: 4 }, 160),
+    windMs: 250,
+    strikeMs: 85,
   },
-  // spinning sweep, weapon level
+  // spinning sweep, weapon level, low wide stance
   atk4: {
-    wind: aim({ torso: -6, aF1: -90, aF2: 0, aB1: -70, aB2: -20, lF1: -15, lB1: 15 }, 90),
-    strike: aim({ torso: 8, aF1: -95, aF2: 0, aB1: -75, aB2: -20, lF1: -20, lB1: 20 }, 95),
-    windMs: 120,
-    strikeMs: 160,
+    wind: aim({ torso: -10, head: 6, aF1: -90, aF2: 0, aB1: -70, aB2: -20, lF1: -35, lF2: 30, lB1: 35, lB2: 20 }, 90),
+    strike: aim({ torso: 14, head: -6, aF1: -98, aF2: 0, aB1: -78, aB2: -20, lF1: -45, lF2: 35, lB1: 45, lB2: 10 }, 95),
+    windMs: 150,
+    strikeMs: 170,
     spin: true,
   },
 };

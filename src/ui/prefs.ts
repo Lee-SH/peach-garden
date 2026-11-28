@@ -4,12 +4,11 @@ export interface Prefs {
   auto: boolean;
   /** battle speed: 1, 2 or 3 */
   speed: number;
-  /** draw generals that have a cutout rig with it (false = the painted pose pictures, the default).
-   * Stored under a new name so players who had the old rig default on get the pictures. */
+  /** animate characters as cutout rigs built from the painted art (default); false = the painted pose pictures */
   joints: boolean;
 }
 
-const DEFAULTS: Prefs = { auto: true, speed: 1, joints: false };
+const DEFAULTS: Prefs = { auto: true, speed: 1, joints: true };
 export const SPEEDS = [1, 2, 3];
 
 export function readPrefs(): Prefs {

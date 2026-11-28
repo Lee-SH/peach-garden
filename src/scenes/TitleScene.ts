@@ -44,7 +44,7 @@ export class TitleScene extends Phaser.Scene {
     cont.setEnabled(!!save && !!SCENARIOS[save.scenarioId]);
 
     // Compare the two animation styles (cutout rig vs frame art) — only affects generals with a rig
-    const animLabel = () => `동작 방식: ${readPrefs().joints ? '관절 (시험 중)' : '그림'}`;
+    const animLabel = () => `동작 방식: ${readPrefs().joints ? '관절' : '그림'}`;
     const anim: Button = button(this, W / 2, 520, 220, 38, animLabel(), () => {
       writePrefs({ joints: !readPrefs().joints });
       setButtonLabel(anim, animLabel());
