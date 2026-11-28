@@ -76,8 +76,8 @@ export const SPOTS: Record<SpotId, Spot> = {
 };
 
 /**
- * Where the spots sit on the town pictures (the AI drew blank sign boxes below each building; the
- * game's name plates cover them). Measured on zhuoxian.png; later pictures keep the same layout.
+ * Where the spots sit on the town pictures (name plates just below each building). Every picture is
+ * drawn from the same layout diagram (assets/raw/town/layout.png), so one set of spots fits all.
  */
 export const PICTURE_SPOTS: Record<SpotId, Spot> = {
   camp: { ...SPOTS.camp, x: 113, y: 171 },
